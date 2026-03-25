@@ -9,8 +9,8 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["ES2020"],
-    "types": ["vitest/globals"]
+    "lib": ["ES2020", "DOM"],
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*", "test/**/*", "vitest.config.ts"]
 }
