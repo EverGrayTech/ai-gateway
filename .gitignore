@@ -35,6 +35,7 @@ Pipfile*
 sdist/
 .tox/*
 tox_base_config
+*.tsbuildinfo
 var/
 wheels/
 

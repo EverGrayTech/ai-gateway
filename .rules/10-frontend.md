@@ -1,16 +1,16 @@
-# Frontend Standards
+# Frontend and Consumer Integration Notes
 
-## Technology Stack
-- **Framework**: Next.js 15+
-- **Package Manager**: pnpm (always use `pnpm` for all operations)
-- **Linting/Formatting**: Biome (`pnpm biome check --apply`)
+## Scope
+- This repository primarily contains a backend gateway package rather than a frontend application
+- Frontend-facing guidance in this repo should focus on how client apps integrate with the gateway contract
 
-## React Best Practices
-- **React Compiler**: Do NOT manually use `useMemo` or `useCallback`
-- **Components**: Prefer Server Components by default
-- **Client Components**: Use `'use client'` directive sparingly and only when necessary
+## Client Integration Principles
+- Treat the gateway as the hosted execution path behind higher-level client libraries and app code
+- Send `appId` and a persistent `clientId` with gateway-related flows
+- Never expose hosted provider API keys in browser code
+- Handle signed tokens and gateway responses as untrusted network data that must be validated by the client integration layer
 
-## Code Conventions
-- **Components**: PascalCase (e.g., `UserProfile.tsx`)
-- **Hooks**: camelCase with `use` prefix (e.g., `useAuth.ts`)
-- **Utilities**: camelCase (e.g., `formatDate.ts`)
+## Documentation Expectations
+- Keep consumer-facing examples aligned with the gateway API contract and package exports
+- Prefer framework-agnostic guidance unless a framework-specific integration is intentionally added to this repository
+- Avoid implying that browser clients call upstream providers directly when the hosted gateway path is in use

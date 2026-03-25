@@ -1,20 +1,26 @@
 # Backend Standards
 
 ## Technology Stack
-- **Framework**: FastAPI
-- **Package Manager**: uv (use `uv run`, `uv add` for all operations)
-- **Linting/Formatting**: Ruff
+- **Language**: TypeScript
+- **Runtime Target**: Serverless HTTP runtimes
+- **Package Manager**: pnpm (use `pnpm` for all operations)
+- **Linting/Formatting**: Biome (`pnpm biome check .`)
+- **Testing**: Vitest
 
 ## Code Organization
-- Alphabetize functions and methods within classes
-- Use strict type hinting throughout
-- Keep code modular and well-organized
+- Keep core gateway logic framework-agnostic and runtime-portable
+- Isolate serverless adapter code from domain logic, policy logic, and provider integrations
+- Prefer small, composable modules with explicit contracts between request handling, enforcement, provider execution, and infrastructure adapters
+- Use strict TypeScript typing throughout
 
-## Data Validation
-- Use Pydantic V2 for all data models
-- Apply strict type validation
+## Validation and Contracts
+- Define explicit request, response, configuration, and policy contracts in TypeScript
+- Validate untrusted input at the boundary of the system
+- Keep normalized internal data shapes separate from raw external payloads
 
 ## Architecture Principles
-- Keep the backend stateless
-- Never perform blocking I/O in `async` routes
-- Use appropriate async patterns for concurrent operations
+- Keep the service stateless and horizontally scalable
+- Do not rely on in-memory coordination for production behavior that must survive across requests or instances
+- Put external concerns such as rate limiting, telemetry, and provider access behind replaceable interfaces
+- Treat streaming support as a first-class backend concern
+- Never leak provider credentials, raw signed tokens, or sensitive request data in responses or logs
