@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  GatewayError,
   HmacTokenSigner,
   NoopRateLimiter,
   NoopTelemetry,
@@ -19,6 +20,7 @@ import {
   normalizeErrorResponse,
   redactFields,
   resolveEffectivePolicy,
+  toGatewayError,
   validationError,
 } from '../src/index.js';
 
@@ -66,6 +68,91 @@ describe('gateway foundation', () => {
     expect(intent.provider).toBe('openai');
     expect(intent.model).toBe('gpt-4o-mini');
     expect(intent.maxOutputTokens).toBe(2048);
+  });
+
+  it('creates policy defaults from configured credentials and app overrides', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+      AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
+      OPENAI_API_KEY: 'openai-key',
+    });
+
+    const policy = createGatewayPolicy(config);
+    expect(policy.allowedProviders).toEqual(['openai']);
+
+    const effective = resolveEffectivePolicy(
+      {
+        ...policy,
+        appOverrides: {
+          app: {
+            allowedProviders: ['openai'],
+            allowedModelsByProvider: { openai: ['gpt-4o-mini', 'gpt-4o-nano'] },
+            defaultProvider: 'openai',
+            defaultModel: 'gpt-4o-nano',
+            maxInputTokens: 256,
+            maxOutputTokens: 128,
+          },
+        },
+      },
+      'app',
+    );
+
+    expect(effective.allowedModelsByProvider.openai).toEqual(['gpt-4o-mini', 'gpt-4o-nano']);
+    expect(effective.defaultModel).toBe('gpt-4o-nano');
+    expect(effective.maxInputTokens).toBe(256);
+    expect(effective.maxOutputTokens).toBe(128);
+  });
+
+  it('normalizes ai request defaults and rejects missing input', () => {
+    expect(
+      normalizeAiRequest({
+        provider: '  openai  ',
+        model: '  gpt-4o-mini  ',
+        input: '  hello world  ',
+        stream: 1 as unknown as boolean,
+      }),
+    ).toEqual({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      input: 'hello world',
+      stream: true,
+      maxOutputTokens: undefined,
+    });
+
+    expect(() => normalizeAiRequest({ input: '   ' })).toThrowError(/input is required/);
+  });
+
+  it('rejects token-restricted models and clamps output tokens to the lowest limit', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+    const policy = resolveEffectivePolicy(createGatewayPolicy(config), 'app');
+
+    expect(() =>
+      evaluateExecutionIntent(
+        normalizeAiRequest({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+        claims,
+        {
+          ...policy,
+          allowedModelsByProvider: { openai: ['gpt-4o-mini', 'gpt-4o'] },
+        },
+      ),
+    ).toThrow(/Model is not permitted by token constraints/);
+
+    const intent = evaluateExecutionIntent(
+      normalizeAiRequest({ input: 'hello', maxOutputTokens: 9999 }),
+      claims,
+      {
+        ...policy,
+        maxOutputTokens: 1000,
+      },
+    );
+
+    expect(intent.maxOutputTokens).toBe(1000);
   });
 
   it('rejects unsupported provider selections', () => {
@@ -193,6 +280,85 @@ describe('gateway foundation', () => {
     );
   });
 
+  it('tracks rate limit windows and exposes telemetry/provider stub data', async () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const context = createRequestContext(
+      {
+        method: 'POST',
+        path: '/auth',
+        headers: {},
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+      },
+      config,
+      { appId: 'app', clientId: 'client' },
+    );
+
+    const limiter = new NoopRateLimiter();
+    const descriptor = {
+      key: 'auth:client',
+      limit: 2,
+      windowSeconds: 60,
+    };
+
+    await expect(limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }))
+      .resolves.toEqual({ allowed: true, remaining: 1 });
+    await expect(limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }))
+      .resolves.toEqual({ allowed: true, remaining: 0 });
+
+    const blocked = await limiter.check(descriptor, context, {
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+    });
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.remaining).toBe(0);
+    expect(blocked.retryAfterSeconds).toBeGreaterThanOrEqual(1);
+
+    const telemetry = new NoopTelemetry();
+    await telemetry.record('test.event', { ok: true, appId: 'app' });
+    expect(await telemetry.flush()).toEqual([
+      {
+        event: 'test.event',
+        fields: { ok: true, appId: 'app' },
+      },
+    ]);
+
+    const executor = new StubProviderExecutor();
+    const nonStreaming = await executor.execute({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      prompt: 'hello',
+      stream: false,
+      maxOutputTokens: 32,
+      context,
+    });
+    expect(nonStreaming.output).toContain('stub:openai:gpt-4o-mini:32:hello');
+    expect(nonStreaming.usage?.totalTokens).toBeTypeOf('number');
+    expect(nonStreaming.stream).toBeUndefined();
+
+    const streaming = await executor.execute({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      prompt: 'hello',
+      stream: true,
+      maxOutputTokens: 32,
+      context,
+    });
+    const chunks: Array<{ event?: string; data: string }> = [];
+    for await (const chunk of streaming.stream ?? []) {
+      chunks.push(chunk);
+    }
+    expect(chunks).toEqual([
+      {
+        event: 'message',
+        data: 'stub:openai:gpt-4o-mini:32:hello',
+      },
+    ]);
+  });
+
   it('executes hosted requests through the initial provider adapter with usage metadata', async () => {
     const executor = new OpenAiProviderExecutor();
 
@@ -304,6 +470,83 @@ describe('gateway foundation', () => {
     );
   });
 
+  it('loads production configuration with trimmed provider credentials and adapter values', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'production',
+      AI_GATEWAY_SIGNING_SECRET: '  prod-secret  ',
+      OPENAI_API_KEY: '  openai-key  ',
+      OPENAI_BASE_URL: '  https://example.test/v1  ',
+      AI_GATEWAY_TOKEN_TTL_SECONDS: '600',
+      AI_GATEWAY_DEFAULT_PROVIDER: '  custom-provider  ',
+      AI_GATEWAY_DEFAULT_MODEL: '  custom-model  ',
+      AI_GATEWAY_RATE_LIMITER: '  redis  ',
+      AI_GATEWAY_TELEMETRY: '  otel  ',
+      AI_GATEWAY_PROVIDER_REGISTRY: '  registry  ',
+    });
+
+    expect(config.environment).toBe('production');
+    expect(config.signingSecret).toBe('prod-secret');
+    expect(config.providerCredentials).toEqual({
+      openai: {
+        apiKey: 'openai-key',
+        baseUrl: 'https://example.test/v1',
+      },
+    });
+    expect(config.defaults.tokenTtlSeconds).toBe(600);
+    expect(config.defaults.defaultProvider).toBe('custom-provider');
+    expect(config.defaults.defaultModel).toBe('custom-model');
+    expect(config.adapters).toEqual({
+      rateLimiter: 'redis',
+      telemetry: 'otel',
+      providerRegistry: 'registry',
+    });
+  });
+
+  it('rejects unsupported environments and invalid token ttl values', () => {
+    expect(() => loadGatewayConfig({ NODE_ENV: 'staging' })).toThrowError(/Unsupported NODE_ENV/);
+
+    expect(() =>
+      loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_TOKEN_TTL_SECONDS: '0',
+      }),
+    ).toThrowError(/AI_GATEWAY_TOKEN_TTL_SECONDS must be a positive integer/);
+
+    expect(() =>
+      loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_TOKEN_TTL_SECONDS: 'abc',
+      }),
+    ).toThrowError(/AI_GATEWAY_TOKEN_TTL_SECONDS must be a positive integer/);
+  });
+
+  it('requires provider credentials in production and uses safe non-production fallbacks', () => {
+    expect(() =>
+      loadGatewayConfig({
+        NODE_ENV: 'production',
+        AI_GATEWAY_SIGNING_SECRET: 'prod-secret',
+      }),
+    ).toThrowError(/At least one provider credential is required in production/);
+
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: '  test-secret  ',
+      OPENAI_API_KEY: '   ',
+      OPENAI_BASE_URL: '   ',
+      AI_GATEWAY_RATE_LIMITER: '   ',
+      AI_GATEWAY_TELEMETRY: '   ',
+      AI_GATEWAY_PROVIDER_REGISTRY: '   ',
+    });
+
+    expect(config.signingSecret).toBe('test-secret');
+    expect(config.providerCredentials).toEqual({});
+    expect(config.adapters).toEqual({
+      rateLimiter: undefined,
+      telemetry: undefined,
+      providerRegistry: undefined,
+    });
+  });
+
   it('creates normalized request context', () => {
     const context = createRequestContext(
       {
@@ -323,6 +566,76 @@ describe('gateway foundation', () => {
     expect(context.identity.appId).toBe('app');
     expect(context.network.ip).toBe('127.0.0.1');
     expect(context.tracing.correlationId).toBe('corr-123');
+  });
+
+  it('reads array headers, forwarded-for chains, and generated runtime metadata', () => {
+    const context = createRequestContext(
+      {
+        method: 'POST',
+        path: '/auth',
+        headers: {
+          'user-agent': ['vitest-agent', 'ignored-agent'],
+          'x-forwarded-for': ' 203.0.113.10, 198.51.100.5 ',
+          'x-request-id': 'req-custom',
+          'x-region': 'us-west-2',
+          traceparent: '00-abc-123-01',
+        },
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+        remoteAddress: '127.0.0.1',
+      },
+      loadGatewayConfig({ NODE_ENV: 'test' }),
+      { appId: ' app ', clientId: ' client ' },
+    );
+
+    expect(context.identity).toEqual({ appId: 'app', clientId: 'client' });
+    expect(context.network.userAgent).toBe('vitest-agent');
+    expect(context.network.forwardedFor).toEqual(['203.0.113.10', '198.51.100.5']);
+    expect(context.runtime.requestId).toBe('req-custom');
+    expect(context.runtime.region).toBe('us-west-2');
+    expect(context.tracing.traceId).toBe('00-abc-123-01');
+  });
+
+  it('omits empty forwarded-for values and rejects missing identity context', () => {
+    const context = createRequestContext(
+      {
+        method: 'POST',
+        path: '/auth',
+        headers: {
+          'x-forwarded-for': ' , , ',
+        },
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+      },
+      loadGatewayConfig({ NODE_ENV: 'test' }),
+      { appId: 'app', clientId: 'client' },
+    );
+
+    expect(context.network.forwardedFor).toEqual([]);
+
+    expect(() =>
+      createRequestContext(
+        {
+          method: 'POST',
+          path: '/auth',
+          headers: {},
+          body: '{}',
+        },
+        loadGatewayConfig({ NODE_ENV: 'test' }),
+        { appId: ' ', clientId: 'client' },
+      ),
+    ).toThrowError(/appId and clientId are required/);
+
+    expect(() =>
+      createRequestContext(
+        {
+          method: 'POST',
+          path: '/auth',
+          headers: {},
+          body: '{}',
+        },
+        loadGatewayConfig({ NODE_ENV: 'test' }),
+        undefined,
+      ),
+    ).toThrowError(/appId and clientId are required/);
   });
 
   it('normalizes safe error responses', () => {
@@ -345,6 +658,68 @@ describe('gateway foundation', () => {
     expect(normalized.status).toBe(400);
     expect(normalized.body.error.code).toBe('BAD_PAYLOAD');
     expect(normalized.body.error.requestId).toBe(context.runtime.requestId);
+  });
+
+  it('converts unknown errors into internal gateway errors and hides unsafe messages', () => {
+    const context = createRequestContext(
+      {
+        method: 'POST',
+        path: '/ai',
+        headers: {},
+        body: JSON.stringify({ input: 'hello' }),
+      },
+      loadGatewayConfig({ NODE_ENV: 'test' }),
+      { appId: 'app', clientId: 'client' },
+    );
+
+    const cause = new Error('boom');
+    const gatewayError = toGatewayError(cause);
+    const normalized = normalizeErrorResponse(cause, context);
+
+    expect(gatewayError).toBeInstanceOf(GatewayError);
+    expect(gatewayError.code).toBe('INTERNAL_ERROR');
+    expect(gatewayError.cause).toBe(cause);
+    expect(normalized.status).toBe(500);
+    expect(normalized.body.error.code).toBe('INTERNAL_ERROR');
+    expect(normalized.body.error.message).toBe('Internal server error');
+  });
+
+  it('returns gateway errors unchanged when normalizing unknown inputs', () => {
+    const gatewayError = validationError('already normalized', 'ALREADY_NORMALIZED');
+
+    expect(toGatewayError(gatewayError)).toBe(gatewayError);
+  });
+
+  it('writes logger output to the appropriate console methods for each level', () => {
+    const output = {
+      log: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+    const logger = createLogger(output);
+
+    logger.debug('debug message', { traceId: 't1' });
+    logger.info('info message');
+    logger.warn('warn message', { code: 'WARN' });
+    logger.error('error message', { code: 'ERR' });
+
+    expect(output.log).toHaveBeenCalledTimes(2);
+    expect(output.warn).toHaveBeenCalledTimes(1);
+    expect(output.error).toHaveBeenCalledTimes(1);
+    expect(output.log).toHaveBeenNthCalledWith(
+      1,
+      JSON.stringify({ level: 'debug', message: 'debug message', fields: { traceId: 't1' } }),
+    );
+    expect(output.log).toHaveBeenNthCalledWith(
+      2,
+      JSON.stringify({ level: 'info', message: 'info message', fields: undefined }),
+    );
+    expect(output.warn).toHaveBeenCalledWith(
+      JSON.stringify({ level: 'warn', message: 'warn message', fields: { code: 'WARN' } }),
+    );
+    expect(output.error).toHaveBeenCalledWith(
+      JSON.stringify({ level: 'error', message: 'error message', fields: { code: 'ERR' } }),
+    );
   });
 
   it('handles auth and ai requests through the shared service pipeline', async () => {
