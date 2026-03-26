@@ -26,51 +26,51 @@ Validate and harden end-to-end streaming behavior using a real upstream provider
 ## Implementation Checklist
 
 ### 1. Gateway-Wide Streaming Contract Validation
-- [ ] Validate the existing normalized gateway streaming contract across provider executor, gateway service, serverless adapter, and client-facing SSE behavior
-- [ ] Clarify only the minimum gateway-wide lifecycle semantics needed for hardening, including stream start, ordered incremental chunk emission, completion/termination, and normalized mid-stream failure behavior
-- [ ] Ensure the resulting semantics remain provider-agnostic so future providers conform to one gateway contract instead of inheriting OpenAI-shaped rules
+- [x] Validate the existing normalized gateway streaming contract across provider executor, gateway service, serverless adapter, and client-facing SSE behavior
+- [x] Clarify only the minimum gateway-wide lifecycle semantics needed for hardening, including stream start, ordered incremental chunk emission, completion/termination, and normalized mid-stream failure behavior
+- [x] Ensure the resulting semantics remain provider-agnostic so future providers conform to one gateway contract instead of inheriting OpenAI-shaped rules
 
 ### 2. End-to-End Streaming Flow Validation
-- [ ] Validate real streaming from provider to gateway to client using OpenAI-backed execution or realistic OpenAI-shaped streaming responses
-- [ ] Verify incremental delivery occurs without unintended full-response buffering across short, long-running, and larger-output streams
-- [ ] Confirm chunk ordering, completeness, and stable behavior across varying response sizes and durations
+- [x] Validate real streaming from provider to gateway to client using OpenAI-backed execution or realistic OpenAI-shaped streaming responses
+- [x] Verify incremental delivery occurs without unintended full-response buffering across short, long-running, and larger-output streams
+- [x] Confirm chunk ordering, completeness, and stable behavior across varying response sizes and durations
 
 ### 3. SSE Formatting and Serverless Transport
-- [ ] Validate that the serverless adapter emits correct `text/event-stream` formatting and headers for browser/EventSource-compatible consumption
-- [ ] Confirm connection handling and response behavior remain correct within the existing serverless adapter model
-- [ ] Identify any platform-specific constraints that may affect incremental delivery or connection lifetime in serverless deployment targets
+- [x] Validate that the serverless adapter emits correct `text/event-stream` formatting and headers for browser/EventSource-compatible consumption
+- [x] Confirm connection handling and response behavior remain correct within the existing serverless adapter model
+- [x] Identify any platform-specific constraints that may affect incremental delivery or connection lifetime in serverless deployment targets
 
 ### 4. Stream Lifecycle Semantics
-- [ ] Define and validate provider-agnostic gateway behavior for stream start, incremental chunk emission, completion, and termination
-- [ ] Determine whether any final-event guarantees exist today and either validate them or explicitly document the absence of such guarantees without changing the public contract
-- [ ] Ensure lifecycle behavior remains consistent regardless of upstream provider event shapes once adapted into the normalized gateway stream model
+- [x] Define and validate provider-agnostic gateway behavior for stream start, incremental chunk emission, completion, and termination
+- [x] Determine whether any final-event guarantees exist today and either validate them or explicitly document the absence of such guarantees without changing the public contract
+- [x] Ensure lifecycle behavior remains consistent regardless of upstream provider event shapes once adapted into the normalized gateway stream model
 
 ### 5. Mid-Stream Error Handling
-- [ ] Define expected gateway behavior when upstream streaming fails after partial output has already been emitted
-- [ ] Ensure mid-stream failures surface in a normalized, client-safe way that does not leak raw provider internals or malformed event payloads
-- [ ] Validate that partial-stream failure paths close or terminate predictably without leaving invalid stream state behind
+- [x] Define expected gateway behavior when upstream streaming fails after partial output has already been emitted
+- [x] Ensure mid-stream failures surface in a normalized, client-safe way that does not leak raw provider internals or malformed event payloads
+- [x] Validate that partial-stream failure paths close or terminate predictably without leaving invalid stream state behind
 
 ### 6. Client Disconnect and Cancellation Handling
-- [ ] Validate behavior when the downstream client disconnects or cancels stream consumption before completion
-- [ ] Ensure upstream iteration and any in-flight provider streaming work are halted, aborted, or safely ignored according to current runtime capabilities to avoid resource leaks
-- [ ] Verify disconnect handling stays within the existing adapter/service model and does not require architectural redesign
+- [x] Validate behavior when the downstream client disconnects or cancels stream consumption before completion
+- [x] Ensure upstream iteration and any in-flight provider streaming work are halted, aborted, or safely ignored according to current runtime capabilities to avoid resource leaks
+- [x] Verify disconnect handling stays within the existing adapter/service model and does not require architectural redesign
 
 ### 7. Backpressure and Buffering Hardening
-- [ ] Explicitly evaluate the current serverless adapter implementation in `src/serverless/adapter.ts` that uses `ReadableStream.start(...)` with eager iteration of the async chunk source
-- [ ] Validate whether the current adapter preserves true incremental streaming behavior, respects downstream backpressure signals in practice, and halts upstream iteration on client disconnect or cancellation
-- [ ] Identify any unintended buffering or over-eager consumption patterns in the runtime, adapter, or provider integration layers
-- [ ] Define required hardening steps within the existing adapter model to reduce over-buffering, improve cancellation handling, and better align chunk production with downstream demand where the runtime supports it
+- [x] Explicitly evaluate the current serverless adapter implementation in `src/serverless/adapter.ts` that uses `ReadableStream.start(...)` with eager iteration of the async chunk source
+- [x] Validate whether the current adapter preserves true incremental streaming behavior, respects downstream backpressure signals in practice, and halts upstream iteration on client disconnect or cancellation
+- [x] Identify any unintended buffering or over-eager consumption patterns in the runtime, adapter, or provider integration layers
+- [x] Define required hardening steps within the existing adapter model to reduce over-buffering, improve cancellation handling, and better align chunk production with downstream demand where the runtime supports it
 
 ### 8. Streaming Observability
-- [ ] Define safe observability expectations for stream start, chunk activity, completion, error, and disconnect events
-- [ ] Ensure observability remains content-safe and does not log prompts, outputs, credentials, bearer tokens, or raw upstream payloads
-- [ ] Confirm streaming telemetry fits the existing observability boundaries rather than introducing provider-specific logging semantics into gateway layers
+- [x] Define safe observability expectations for stream start, chunk activity, completion, error, and disconnect events
+- [x] Ensure observability remains content-safe and does not log prompts, outputs, credentials, bearer tokens, or raw upstream payloads
+- [x] Confirm streaming telemetry fits the existing observability boundaries rather than introducing provider-specific logging semantics into gateway layers
 
 ### 9. Test Strategy
-- [ ] Add integration-style tests for normal streaming, slow/long-running streams, large-output streams, upstream mid-stream failure, and client disconnect scenarios
-- [ ] Add adapter-focused tests that validate SSE framing, streaming incrementality, cancellation propagation, and any hardening applied to the current `ReadableStream` implementation
-- [ ] Use real or realistically mocked OpenAI-style streaming responses to validate provider adaptation behavior without weakening gateway-level streaming guarantees
-- [ ] Preserve existing public API contract coverage to ensure hardening does not change `/ai` request or response shape
+- [x] Add integration-style tests for normal streaming, slow/long-running streams, large-output streams, upstream mid-stream failure, and client disconnect scenarios
+- [x] Add adapter-focused tests that validate SSE framing, streaming incrementality, cancellation propagation, and any hardening applied to the current `ReadableStream` implementation
+- [x] Use real or realistically mocked OpenAI-style streaming responses to validate provider adaptation behavior without weakening gateway-level streaming guarantees
+- [x] Preserve existing public API contract coverage to ensure hardening does not change `/ai` request or response shape
 
 ## Non-Goals
 - Redesigning the gateway streaming architecture or introducing new cross-layer streaming abstractions
@@ -78,8 +78,8 @@ Validate and harden end-to-end streaming behavior using a real upstream provider
 - Expanding this phase into multi-provider streaming implementation beyond what is needed to keep the contract provider-agnostic
 
 ## Acceptance Criteria
-- [ ] The gateway streaming contract is validated end-to-end and clarified only as needed at the gateway level, not as provider-specific behavior
-- [ ] Streaming through the current serverless adapter is verified to be correctly formatted, incrementally delivered where supported, and hardened against unintended buffering risks
-- [ ] Mid-stream failure and client disconnect behavior are defined, tested, and made production-safe within the existing architecture
-- [ ] Streaming observability captures operational lifecycle signals without exposing sensitive content
-- [ ] The `/ai` public contract, policy flow, and provider abstraction remain unchanged while streaming reliability improves
+- [x] The gateway streaming contract is validated end-to-end and clarified only as needed at the gateway level, not as provider-specific behavior
+- [x] Streaming through the current serverless adapter is verified to be correctly formatted, incrementally delivered where supported, and hardened against unintended buffering risks
+- [x] Mid-stream failure and client disconnect behavior are defined, tested, and made production-safe within the existing architecture
+- [x] Streaming observability captures operational lifecycle signals without exposing sensitive content
+- [x] The `/ai` public contract, policy flow, and provider abstraction remain unchanged while streaming reliability improves

@@ -33,17 +33,29 @@ export const toGatewayHttpRequest = async (
 
 const eventStreamFromChunks = (
   chunks: AsyncIterable<{ event?: string; data: string }>,
-): ReadableStream =>
-  new ReadableStream({
-    async start(controller) {
+): ReadableStream => {
+  const iterator = chunks[Symbol.asyncIterator]();
+
+  return new ReadableStream({
+    async pull(controller) {
       const encoder = new TextEncoder();
-      for await (const chunk of chunks) {
-        const payload = `${chunk.event ? `event: ${chunk.event}\n` : ''}data: ${chunk.data}\n\n`;
-        controller.enqueue(encoder.encode(payload));
+      const next = await iterator.next();
+
+      if (next.done) {
+        controller.close();
+        return;
       }
-      controller.close();
+
+      const payload = `${next.value.event ? `event: ${next.value.event}\n` : ''}data: ${next.value.data}\n\n`;
+      controller.enqueue(encoder.encode(payload));
+    },
+    async cancel() {
+      if (iterator.return) {
+        await iterator.return();
+      }
     },
   });
+};
 
 export const toFetchResponse = (result: GatewayHandlerResult): Response => {
   if (result.kind === 'response') {

@@ -624,4 +624,156 @@ describe('integration gateway api', () => {
     expect(chunks.join('')).toContain('data: hello ');
     expect(chunks.join('')).toContain('data: stream');
   });
+
+  it('formats streamed chunks as browser-compatible sse events in order', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          return {
+            output: '',
+            stream: (async function* () {
+              yield { event: 'message', data: 'first' };
+              yield { data: 'second' };
+            })(),
+          };
+        },
+      },
+    });
+
+    const authResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+    const authBody = (await authResponse.json()) as { token: string };
+
+    const streamResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/ai',
+      headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
+      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+    });
+
+    const reader = streamResponse.body?.getReader();
+    if (!reader) {
+      throw new Error('expected readable stream body');
+    }
+
+    const decoder = new TextDecoder();
+    const payloads: string[] = [];
+    while (true) {
+      const next = await reader.read();
+      if (next.done) {
+        break;
+      }
+
+      payloads.push(decoder.decode(next.value));
+    }
+
+    expect(payloads).toEqual(['event: message\ndata: first\n\n', 'data: second\n\n']);
+  });
+
+  it('propagates downstream stream cancellation to the provider iterator', async () => {
+    let cancelled = false;
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          return {
+            output: '',
+            stream: {
+              [Symbol.asyncIterator]() {
+                return {
+                  async next() {
+                    return { done: false, value: { event: 'message', data: 'first' } };
+                  },
+                  async return() {
+                    cancelled = true;
+                    return { done: true, value: undefined };
+                  },
+                };
+              },
+            },
+          };
+        },
+      },
+    });
+
+    const authResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+    const authBody = (await authResponse.json()) as { token: string };
+
+    const streamResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/ai',
+      headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
+      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+    });
+
+    const reader = streamResponse.body?.getReader();
+    if (!reader) {
+      throw new Error('expected readable stream body');
+    }
+
+    await reader.read();
+    await reader.cancel();
+
+    expect(cancelled).toBe(true);
+  });
+
+  it('surfaces mid-stream provider failures as terminated stream reads', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          return {
+            output: '',
+            stream: (async function* () {
+              yield { event: 'message', data: 'partial' };
+              throw new Error('stream exploded');
+            })(),
+          };
+        },
+      },
+    });
+
+    const authResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+    const authBody = (await authResponse.json()) as { token: string };
+
+    const streamResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/ai',
+      headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
+      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+    });
+
+    const reader = streamResponse.body?.getReader();
+    if (!reader) {
+      throw new Error('expected readable stream body');
+    }
+
+    const firstChunk = await reader.read();
+    expect(new TextDecoder().decode(firstChunk.value)).toContain('data: partial');
+    await expect(reader.read()).rejects.toThrow('stream exploded');
+  });
 });

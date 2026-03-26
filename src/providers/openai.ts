@@ -244,6 +244,11 @@ const createSseStream = async function* (
       }
     }
   } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      // Ignore cancellation cleanup failures during stream teardown.
+    }
     reader.releaseLock();
   }
 };
