@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  HmacTokenSigner,
   AnthropicProviderExecutor,
   GeminiProviderExecutor,
+  HmacTokenSigner,
   NoopRateLimiter,
   NoopTelemetry,
   OpenAiProviderExecutor,
@@ -67,6 +67,18 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
+      }),
+      providerExecutor: new OpenAiProviderExecutor({
+        credentials: { apiKey: 'openai-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              output: [{ content: [{ type: 'output_text', text: 'hello from openai' }] }],
+              usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
       }),
     });
 
@@ -104,15 +116,42 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const aiBody = JSON.parse(aiResult.response.body) as { output: string };
-    expect(aiBody.output).toContain('openai:gpt-4o-mini:2048:hello');
+    const aiBody = JSON.parse(aiResult.response.body) as {
+      output: string;
+      usage: { totalTokens: number };
+    };
+    expect(aiBody.output).toBe('hello from openai');
+    expect(aiBody.usage.totalTokens).toBe(5);
   });
 
   it('supports streaming-capable responses through the serverless adapter', async () => {
+    const encoder = new TextEncoder();
     const handler = createServerlessHandler({
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
+      }),
+      providerExecutor: new OpenAiProviderExecutor({
+        credentials: { apiKey: 'openai-key' },
+        fetchFn: async () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode('data: {"type":"response.output_text.delta","delta":"hello"}\n\n'),
+                );
+                controller.enqueue(
+                  encoder.encode(
+                    'data: {"type":"response.output_text.delta","delta":" world"}\n\n',
+                  ),
+                );
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'text/event-stream' } },
+          ),
       }),
     });
 
@@ -141,6 +180,17 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
+      }),
+      providerExecutor: new OpenAiProviderExecutor({
+        credentials: { apiKey: 'openai-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              output: [{ content: [{ type: 'output_text', text: 'default model output' }] }],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
       }),
     });
 
@@ -203,7 +253,11 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'anthropic', model: 'claude-3-5-haiku-latest', input: 'hi' }),
+      body: JSON.stringify({
+        provider: 'anthropic',
+        model: 'claude-3-5-haiku-latest',
+        input: 'hi',
+      }),
     });
 
     expect(aiResult.kind).toBe('response');
@@ -503,12 +557,36 @@ describe('integration gateway api', () => {
   });
 
   it('supports incremental provider streaming passthrough', async () => {
+    const encoder = new TextEncoder();
     const handler = createServerlessHandler({
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
       }),
-      providerExecutor: new OpenAiProviderExecutor(),
+      providerExecutor: new OpenAiProviderExecutor({
+        credentials: { apiKey: 'openai-key' },
+        fetchFn: async () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    'data: {"type":"response.output_text.delta","delta":"hello "}\n\n',
+                  ),
+                );
+                controller.enqueue(
+                  encoder.encode(
+                    'data: {"type":"response.output_text.delta","delta":"stream"}\n\n',
+                  ),
+                );
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'text/event-stream' } },
+          ),
+      }),
     });
 
     const authResponse = await handler({
@@ -543,8 +621,7 @@ describe('integration gateway api', () => {
       chunks.push(decoder.decode(next.value));
     }
 
-    expect(chunks.join('')).toContain('data: openai:gpt-4');
-    expect(chunks.join('')).toContain('data: o-mini:2048:');
-    expect(chunks.join('')).toContain('data: hello');
+    expect(chunks.join('')).toContain('data: hello ');
+    expect(chunks.join('')).toContain('data: stream');
   });
 });

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   NoopRateLimiter,
-  createRequestContext,
   createRateLimitKey,
+  createRequestContext,
   loadGatewayConfig,
 } from '../../src/index.js';
 
@@ -54,10 +54,12 @@ describe('runtime rate-limit', () => {
       windowSeconds: 60,
     };
 
-    await expect(limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }))
-      .resolves.toEqual({ allowed: true, remaining: 1 });
-    await expect(limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }))
-      .resolves.toEqual({ allowed: true, remaining: 0 });
+    await expect(
+      limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }),
+    ).resolves.toEqual({ allowed: true, remaining: 1 });
+    await expect(
+      limiter.check(descriptor, context, { method: 'POST', path: '/auth', headers: {} }),
+    ).resolves.toEqual({ allowed: true, remaining: 0 });
 
     const blocked = await limiter.check(descriptor, context, {
       method: 'POST',

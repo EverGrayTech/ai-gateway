@@ -76,7 +76,9 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
     providerExecutor:
       options.providerExecutor ??
       new CompositeProviderExecutor([
-        new OpenAiProviderExecutor(),
+        new OpenAiProviderExecutor({
+          credentials: config.providerCredentials.openai,
+        }),
         new AnthropicProviderExecutor(),
         new GeminiProviderExecutor(),
         new OpenRouterProviderExecutor(),

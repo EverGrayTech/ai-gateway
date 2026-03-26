@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  StubProviderExecutor,
-  createRequestContext,
-  loadGatewayConfig,
-} from '../../src/index.js';
+import { StubProviderExecutor, createRequestContext, loadGatewayConfig } from '../../src/index.js';
 
 describe('runtime adapters', () => {
   it('exposes provider stub data for non-streaming and streaming execution', async () => {
