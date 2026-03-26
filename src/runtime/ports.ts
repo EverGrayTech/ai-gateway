@@ -1,17 +1,34 @@
 import type { RequestContext } from '../contracts/context.js';
 import type { GatewayHttpRequest } from '../contracts/http.js';
 
+export interface RateLimitDescriptor {
+  key: string;
+  limit: number;
+  windowSeconds: number;
+}
+
 export interface RateLimitResult {
   allowed: boolean;
   retryAfterSeconds?: number;
+  remaining?: number;
 }
 
 export interface RateLimiterPort {
-  check(context: RequestContext, request: GatewayHttpRequest): Promise<RateLimitResult>;
+  check(
+    descriptor: RateLimitDescriptor,
+    context: RequestContext,
+    request: GatewayHttpRequest,
+  ): Promise<RateLimitResult>;
+}
+
+export interface TelemetryRecord {
+  event: string;
+  fields: Readonly<Record<string, unknown>>;
 }
 
 export interface TelemetryPort {
   record(event: string, fields: Readonly<Record<string, unknown>>): Promise<void>;
+  flush?(): Promise<readonly TelemetryRecord[]>;
 }
 
 export interface ProviderExecutorPort {

@@ -12,6 +12,7 @@ import type {
 import { authenticationError, rateLimitError, validationError } from '../errors/factories.js';
 import { normalizeErrorResponse } from '../errors/normalize.js';
 import type { Logger } from '../observability/logger.js';
+import { redactFields } from '../observability/redaction.js';
 import { startRequestTimer, summarizeRequestContext } from '../observability/request.js';
 import {
   createGatewayPolicy,
@@ -21,6 +22,7 @@ import {
 } from '../policy/core.js';
 import { createRequestContext } from './context.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from './ports.js';
+import { assertRateLimitAllowed, resolveRateLimitDescriptor } from './rate-limit.js';
 
 export interface GatewayServiceDependencies {
   config: GatewayConfig;
@@ -92,11 +94,13 @@ export class GatewayService {
       const normalized = normalizeErrorResponse(error, fallbackContext);
 
       this.#dependencies.logger.error('Request failed', {
-        ...summarizeRequestContext(fallbackContext),
-        path: request.path,
-        method: request.method,
-        status: normalized.status,
-        error: normalized.body.error.code,
+        ...redactFields({
+          ...summarizeRequestContext(fallbackContext),
+          path: request.path,
+          method: request.method,
+          status: normalized.status,
+          error: normalized.body.error.code,
+        }),
       });
 
       await this.#dependencies.telemetry.record('request.failed', {
@@ -159,7 +163,7 @@ export class GatewayService {
     };
 
     await this.#dependencies.telemetry.record('auth.issued', {
-      ...summarizeRequestContext(context),
+      ...redactFields(summarizeRequestContext(context)),
       maxInputTokens: claims.constraints.maxInputTokens,
       modelAllowlist: claims.constraints.modelAllowlist,
     });
@@ -221,10 +225,11 @@ export class GatewayService {
     );
 
     await this.#dependencies.telemetry.record('ai.policy.evaluated', {
-      ...summarizeRequestContext(context),
+      ...redactFields(summarizeRequestContext(context)),
       provider: executionIntent.provider,
       model: executionIntent.model,
       maxOutputTokens: executionIntent.maxOutputTokens,
+      approximateInputTokens: Math.ceil(executionIntent.prompt.length / 4),
     });
 
     const execution = await this.#dependencies.providerExecutor.execute({
@@ -264,14 +269,18 @@ export class GatewayService {
     context: RequestContext,
     request: GatewayHttpRequest,
   ): Promise<void> {
-    const result = await this.#dependencies.rateLimiter.check(context, request);
+    const endpoint = request.path === '/auth' ? '/auth' : '/ai';
+    const descriptor = resolveRateLimitDescriptor(endpoint, context, request);
+    const result = await this.#dependencies.rateLimiter.check(descriptor, context, request);
 
     if (!result.allowed) {
-      throw rateLimitError(
-        result.retryAfterSeconds
-          ? `Retry after ${result.retryAfterSeconds} seconds`
-          : 'Rate limit exceeded',
-      );
+      await this.#dependencies.telemetry.record('rate_limit.exceeded', {
+        ...redactFields(summarizeRequestContext(context)),
+        endpoint,
+        retryAfterSeconds: result.retryAfterSeconds,
+      });
     }
+
+    assertRateLimitAllowed(result.allowed, result.retryAfterSeconds);
   }
 }

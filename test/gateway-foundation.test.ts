@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   HmacTokenSigner,
+  NoopRateLimiter,
+  NoopTelemetry,
+  StubProviderExecutor,
+  type TelemetryRecord,
   createGatewayPolicy,
   createGatewayService,
+  createLogger,
+  createRateLimitKey,
   createRequestContext,
   createServerlessHandler,
   createTokenClaims,
@@ -10,6 +16,7 @@ import {
   loadGatewayConfig,
   normalizeAiRequest,
   normalizeErrorResponse,
+  redactFields,
   resolveEffectivePolicy,
   validationError,
 } from '../src/index.js';
@@ -98,6 +105,91 @@ describe('gateway foundation', () => {
         resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
       ),
     ).toThrow(/Input exceeds allowed size/);
+  });
+
+  it('creates stable rate limit keys from endpoint, client, and ip context', () => {
+    const context = createRequestContext(
+      {
+        method: 'POST',
+        path: '/auth',
+        headers: {},
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+        remoteAddress: '127.0.0.1',
+      },
+      loadGatewayConfig({ NODE_ENV: 'test' }),
+      { appId: 'app', clientId: 'client' },
+    );
+
+    const key = createRateLimitKey('/auth', context, {
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: '{}',
+      remoteAddress: '127.0.0.1',
+    });
+
+    expect(key).toBe('/auth:client:127.0.0.1');
+  });
+
+  it('redacts sensitive fields before logging or telemetry', () => {
+    expect(
+      redactFields({
+        authorization: 'Bearer secret',
+        token: 'abc',
+        prompt: 'hello',
+        clientId: 'client',
+      }),
+    ).toEqual({
+      authorization: '[REDACTED]',
+      token: '[REDACTED]',
+      prompt: '[REDACTED]',
+      clientId: 'client',
+    });
+  });
+
+  it('enforces hard rate limits for repeated auth requests and records telemetry', async () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const telemetry = new NoopTelemetry();
+    const service = createGatewayService({
+      config,
+      logger: createLogger(),
+      rateLimiter: new NoopRateLimiter(),
+      telemetry,
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      const result = await service.handle({
+        method: 'POST',
+        path: '/auth',
+        headers: {},
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+        remoteAddress: '127.0.0.1',
+      });
+      expect(result.kind).toBe('response');
+    }
+
+    const blocked = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+      remoteAddress: '127.0.0.1',
+    });
+
+    expect(blocked.kind).toBe('response');
+    if (blocked.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    expect(blocked.response.status).toBe(429);
+    const records = await telemetry.flush();
+    expect(records.some((record: TelemetryRecord) => record.event === 'rate_limit.exceeded')).toBe(
+      true,
+    );
   });
 
   it('rejects invalid token signatures distinctly', async () => {

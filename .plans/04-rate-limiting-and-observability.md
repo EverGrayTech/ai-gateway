@@ -23,33 +23,33 @@ Define the strict abuse-prevention and baseline telemetry layer for `@evergrayte
 ## Implementation Checklist
 
 ### 1. Rate Limiting Interfaces
-- [ ] Define rate-limit keying strategy using endpoint, IP-derived identity, and `clientId`
-- [ ] Define pluggable storage interfaces suitable for external backends such as Redis or managed key-value stores
-- [ ] Define development fallback behavior that preserves contract semantics without pretending to be production-grade
+- [x] Define rate-limit keying strategy using endpoint, IP-derived identity, and `clientId`
+- [x] Define pluggable storage interfaces suitable for external backends such as Redis or managed key-value stores
+- [x] Define development fallback behavior that preserves contract semantics without pretending to be production-grade
 
 ### 2. Enforcement Behavior
-- [ ] Define distinct rate-limit policies for `/auth` and `/ai` based on abuse risk and expected traffic shape
-- [ ] Establish stable response semantics for exceeded limits, including retry-safe behavior where appropriate
-- [ ] Ensure rate-limit checks integrate cleanly into the request pipeline before expensive work or upstream calls begin
+- [x] Define distinct rate-limit policies for `/auth` and `/ai` based on abuse risk and expected traffic shape
+- [x] Establish stable response semantics for exceeded limits, including retry-safe behavior where appropriate
+- [x] Ensure rate-limit checks integrate cleanly into the request pipeline before expensive work or upstream calls begin
 
 ### 3. Metrics and Event Model
-- [ ] Define baseline telemetry events for request counts, error counts, rate-limit violations, and approximate token usage when available
-- [ ] Define structured logging fields and metric dimensions for endpoint, app context, provider/model context, and outcome class
-- [ ] Ensure telemetry can be emitted without coupling the core service to one specific vendor backend
+- [x] Define baseline telemetry events for request counts, error counts, rate-limit violations, and approximate token usage when available
+- [x] Define structured logging fields and metric dimensions for endpoint, app context, provider/model context, and outcome class
+- [x] Ensure telemetry can be emitted without coupling the core service to one specific vendor backend
 
 ### 4. Sensitive Data Handling
-- [ ] Define observability rules that exclude raw tokens, provider keys, prompts, and other sensitive payload details from logs/metrics
-- [ ] Establish safe redaction behavior for request and provider error paths
-- [ ] Ensure tracing or correlation metadata improves diagnosis without increasing leakage risk
+- [x] Define observability rules that exclude raw tokens, provider keys, prompts, and other sensitive payload details from logs/metrics
+- [x] Establish safe redaction behavior for request and provider error paths
+- [x] Ensure tracing or correlation metadata improves diagnosis without increasing leakage risk
 
 ### 5. Test and Local Verification Strategy
-- [ ] Verify rate-limit behavior for allowed traffic, exceeded traffic, and backend-degraded scenarios
-- [ ] Verify both `/auth` and `/ai` emit the intended baseline telemetry events and counters
-- [ ] Verify development fallbacks support local testing while making their non-production nature explicit
+- [x] Verify rate-limit behavior for allowed traffic, exceeded traffic, and backend-degraded scenarios
+- [x] Verify both `/auth` and `/ai` emit the intended baseline telemetry events and counters
+- [x] Verify development fallbacks support local testing while making their non-production nature explicit
 
 ## Acceptance Criteria
-- [ ] `/auth` and `/ai` both enforce hard server-side rate limits using IP and `clientId` context
-- [ ] Rate-limiting storage and telemetry emission are abstracted behind pluggable interfaces suitable for serverless deployment
-- [ ] The gateway records request/error/rate-limit activity and approximate token usage where available
-- [ ] Logging and metrics avoid sensitive data leakage while still supporting operator diagnosis
-- [ ] Local development can exercise these behaviors without requiring production infrastructure choices to be finalized
+- [x] `/auth` and `/ai` both enforce hard server-side rate limits using IP and `clientId` context
+- [x] Rate-limiting storage and telemetry emission are abstracted behind pluggable interfaces suitable for serverless deployment
+- [x] The gateway records request/error/rate-limit activity and approximate token usage where available
+- [x] Logging and metrics avoid sensitive data leakage while still supporting operator diagnosis
+- [x] Local development can exercise these behaviors without requiring production infrastructure choices to be finalized
