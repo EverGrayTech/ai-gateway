@@ -4,7 +4,7 @@
 Assemble the `/auth` and `/ai` endpoints into a fully integrated serverless gateway flow with end-to-end validation, hosted execution, rejection behavior, and integration tests covering the MVP acceptance criteria.
 
 ## Customer Value
-- Proves that multiple EverGray apps can use one centralized hosted AI service through a consistent interface
+- Proves that multiple EverGray Tech apps can use one centralized hosted AI service through a consistent interface
 - Validates that security, enforcement, and execution layers work together instead of only in isolation
 - Reduces integration risk for downstream clients by locking the MVP API behavior through tests
 

@@ -5,7 +5,7 @@ Define the central enforcement layer that evaluates hosted AI requests against g
 
 ## Customer Value
 - Protects hosted usage from unintended cost, misuse, and unsupported requests
-- Gives EverGray apps a predictable execution contract regardless of which client initiates the request
+- Gives EverGray Tech apps a predictable execution contract regardless of which client initiates the request
 - Centralizes safety and allowlist logic so future app-specific controls can be added without changing every endpoint
 
 ## Scope Decisions (Locked)

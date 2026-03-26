@@ -4,7 +4,7 @@
 Define the TypeScript-first foundation for `@evergraytech/ai-gateway` as a stateless serverless HTTP service, including runtime-safe module boundaries, request handling seams, configuration loading, and normalized error behavior.
 
 ## Customer Value
-- Establishes a stable backend foundation that downstream EverGray apps can rely on across hosted AI usage
+- Establishes a stable backend foundation that downstream EverGray Tech apps can rely on across hosted AI usage
 - Reduces rework by locking runtime-safe architecture decisions before auth, policy, and provider execution are implemented
 - Keeps the service portable across serverless platforms instead of coupling the MVP to one hosting vendor too early
 

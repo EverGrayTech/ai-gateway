@@ -51,6 +51,37 @@ Before considering a change ready, verify:
 - `pnpm test`
 - `pnpm build`
 
+The current repository test command enforces a global branch coverage threshold. Functional tests may all pass while `pnpm test` still exits non-zero if coverage remains below the configured threshold.
+
+## Operator configuration expectations
+
+Production operators should document and supply:
+
+- `AI_GATEWAY_SIGNING_SECRET` as a strong secret from managed secret storage
+- hosted provider credentials through server-side-only infrastructure wiring
+- durable rate-limiting infrastructure for production coordination
+- telemetry sinks appropriate for the deployment environment
+
+Development and local validation may use the repository's in-memory fallback adapters, but those are explicitly non-production implementations.
+
+## Serverless runtime expectations
+
+- keep the service stateless across requests
+- do not rely on in-process memory for production coordination guarantees
+- validate streaming support in the target platform because some runtimes buffer responses
+- keep adapter-specific behavior at the edge and preserve portable core service logic
+
+## Local integration workflow
+
+For local hosted-path verification, validate:
+
+1. `/auth` token issuance with `appId` and `clientId`
+2. `/ai` non-streaming execution with the bearer token
+3. `/ai` streaming execution with `stream: true`
+4. rejection scenarios such as invalid JSON, missing bearer token, unsupported model, and rate limiting
+
+Use mocked or stubbed provider executors for deterministic tests when validating contract behavior without external infrastructure.
+
 ## Service design expectations
 
 - Keep the gateway stateless and suitable for serverless HTTP deployment

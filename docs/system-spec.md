@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`@evergraytech/ai-gateway` is a centralized backend service that authorizes and executes hosted AI requests on behalf of EverGray applications. It protects provider credentials, enforces server-side policy, and exposes a consistent interface for downstream consumers.
+`@evergraytech/ai-gateway` is a centralized backend service that authorizes and executes hosted AI requests on behalf of EverGray Tech applications. It protects provider credentials, enforces server-side policy, and exposes a consistent interface for downstream consumers.
 
 ## Core responsibilities
 

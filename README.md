@@ -13,7 +13,7 @@
 
 ## Hosted gateway role
 
-The gateway is the execution and enforcement layer behind EverGray AI-enabled clients. Client applications identify themselves with `appId`, send a persistent `clientId`, obtain a signed token from `/auth`, and use that token with `/ai` for hosted execution.
+The gateway is the execution and enforcement layer behind EverGray Tech AI-enabled clients. Client applications identify themselves with `appId`, send a persistent `clientId`, obtain a signed token from `/auth`, and use that token with `/ai` for hosted execution.
 
 Bring-your-own-key flows remain outside the gateway path. In those cases, clients call providers directly and this package is not involved in inference execution.
 
@@ -28,6 +28,24 @@ pnpm add @evergraytech/ai-gateway
 - [Consumption Guide](docs/consumption-guide.md) — downstream integration expectations and gateway contract
 - [Development Guide](docs/development.md) — maintainer workflow, quality checks, and repository standards
 - [System Spec](docs/system-spec.md) — architectural boundaries and service responsibilities
+
+## MVP hosted contract summary
+
+The public hosted flow is:
+
+1. `POST /auth` with `appId` and persistent `clientId`
+2. receive a short-lived signed bearer token
+3. `POST /ai` with `Authorization: Bearer <token>` and a normalized hosted request body
+4. receive either JSON output or an SSE stream, depending on `stream`
+
+The current MVP hosted provider is `openai` with default model `gpt-4o-mini`. Unsupported providers/models, malformed payloads, missing or invalid tokens, and rate-limited requests are hard rejected by the gateway.
+
+## Operator notes
+
+- production deployments must provide a strong `AI_GATEWAY_SIGNING_SECRET`
+- the gateway is designed for stateless serverless HTTP deployment
+- production-grade rate limiting, telemetry sinks, and provider credential management should be supplied through external adapters/infrastructure
+- streaming depends on runtime support for incremental HTTP response delivery
 
 ## Package focus
 
