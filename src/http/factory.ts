@@ -1,3 +1,4 @@
+import { HmacTokenSigner } from '../auth/token.js';
 import { loadGatewayConfig } from '../config/env.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type { Logger } from '../observability/logger.js';
@@ -20,5 +21,6 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
     rateLimiter: new NoopRateLimiter(),
     telemetry: new NoopTelemetry(),
     providerExecutor: new StubProviderExecutor(),
+    tokenSigner: new HmacTokenSigner(config.signingSecret),
   });
 };

@@ -1,3 +1,5 @@
+import { type HmacTokenSigner, createTokenClaims } from '../auth/token.js';
+import type { AuthRequestBody, AuthSuccessResponse } from '../contracts/api.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type { RequestContext } from '../contracts/context.js';
 import type {
@@ -13,30 +15,13 @@ import { startRequestTimer, summarizeRequestContext } from '../observability/req
 import { createRequestContext } from './context.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from './ports.js';
 
-const textEncoder = new TextEncoder();
-
-const encodeBase64Url = (value: string): string => {
-  const bytes = textEncoder.encode(value);
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/u, '');
-};
-
-const decodeBase64Url = (value: string): string => {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  return atob(padded);
-};
-
 export interface GatewayServiceDependencies {
   config: GatewayConfig;
   logger: Logger;
   rateLimiter: RateLimiterPort;
   telemetry: TelemetryPort;
   providerExecutor: ProviderExecutorPort;
+  tokenSigner: HmacTokenSigner;
 }
 
 const jsonResponse = (status: number, body: unknown): GatewayHttpResponse => ({
@@ -145,26 +130,36 @@ export class GatewayService {
     request: GatewayHttpRequest,
     setContext: (context: RequestContext) => void,
   ): Promise<GatewayHandlerResult> {
-    const body = parseJsonBody<{ appId?: string; clientId?: string }>(request);
+    const body = parseJsonBody<AuthRequestBody>(request);
     const context = createRequestContext(request, this.#dependencies.config, body);
     setContext(context);
 
     await this.enforceRateLimit(context, request);
 
-    const expiresAt = new Date(
-      Date.now() + this.#dependencies.config.defaults.tokenTtlSeconds * 1000,
-    ).toISOString();
-    const token = encodeBase64Url(
-      JSON.stringify({
+    const claims = createTokenClaims(
+      {
         appId: context.identity.appId,
         clientId: context.identity.clientId,
-        exp: expiresAt,
-      }),
+        modelAllowlist: body.modelAllowlist,
+      },
+      this.#dependencies.config,
     );
+    const token = await this.#dependencies.tokenSigner.sign(claims);
+    const responseBody: AuthSuccessResponse = {
+      token,
+      issuedAt: new Date(claims.iat * 1000).toISOString(),
+      expiresAt: new Date(claims.exp * 1000).toISOString(),
+    };
+
+    await this.#dependencies.telemetry.record('auth.issued', {
+      ...summarizeRequestContext(context),
+      maxInputTokens: claims.constraints.maxInputTokens,
+      modelAllowlist: claims.constraints.modelAllowlist,
+    });
 
     return {
       kind: 'response',
-      response: jsonResponse(200, { token, expiresAt }),
+      response: jsonResponse(200, responseBody),
     };
   }
 
@@ -182,12 +177,15 @@ export class GatewayService {
 
     let identity: { appId?: string; clientId?: string };
     try {
-      identity = JSON.parse(decodeBase64Url(authorization.slice('Bearer '.length))) as {
-        appId?: string;
-        clientId?: string;
+      const verifiedToken = await this.#dependencies.tokenSigner.verify(
+        authorization.slice('Bearer '.length),
+      );
+      identity = {
+        appId: verifiedToken.claims.appId,
+        clientId: verifiedToken.claims.clientId,
       };
     } catch {
-      throw authenticationError('Bearer token is malformed', 'INVALID_BEARER_TOKEN');
+      throw authenticationError('Bearer token is invalid', 'INVALID_BEARER_TOKEN');
     }
 
     const context = createRequestContext(request, this.#dependencies.config, identity);

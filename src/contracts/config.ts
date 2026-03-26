@@ -9,6 +9,7 @@ export interface GatewayDefaults {
   tokenTtlSeconds: number;
   defaultProvider: string;
   defaultModel: string;
+  maxInputTokens: number;
 }
 
 export interface AdapterBindings {

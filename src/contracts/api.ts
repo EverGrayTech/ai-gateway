@@ -1,11 +1,13 @@
 export interface AuthRequestBody {
   appId: string;
   clientId: string;
+  modelAllowlist?: readonly string[];
 }
 
 export interface AuthSuccessResponse {
   token: string;
   expiresAt: string;
+  issuedAt: string;
 }
 
 export interface AiRequestBody {

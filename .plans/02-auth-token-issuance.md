@@ -21,33 +21,33 @@ Define the `/auth` flow for issuing short-lived signed request tokens that bind 
 ## Implementation Checklist
 
 ### 1. `/auth` Request Contract
-- [ ] Define the request and response schema for token issuance, including required `appId` and `clientId` inputs
-- [ ] Define validation behavior for malformed, missing, or unusable auth requests
-- [ ] Ensure `/auth` responses return only the signed token and safe metadata needed by clients
+- [x] Define the request and response schema for token issuance, including required `appId` and `clientId` inputs
+- [x] Define validation behavior for malformed, missing, or unusable auth requests
+- [x] Ensure `/auth` responses return only the signed token and safe metadata needed by clients
 
 ### 2. Token Claim Model
-- [ ] Define the required token claims for expiration, `appId`, `clientId`, and maximum token limits
-- [ ] Define optional v1 claim support for model allowlists and other future-safe enforcement metadata
-- [ ] Document token lifetime strategy and how claim defaults are derived from gateway policy/configuration
+- [x] Define the required token claims for expiration, `appId`, `clientId`, and maximum token limits
+- [x] Define optional v1 claim support for model allowlists and other future-safe enforcement metadata
+- [x] Document token lifetime strategy and how claim defaults are derived from gateway policy/configuration
 
 ### 3. Signing and Verification Utilities
-- [ ] Define reusable token-signing and token-verification interfaces for the gateway runtime
-- [ ] Ensure signature verification distinguishes invalid signature, expired token, and malformed token failures cleanly
-- [ ] Keep signing implementation isolated from route handlers so future asymmetric signing can be introduced without broad rewrites
+- [x] Define reusable token-signing and token-verification interfaces for the gateway runtime
+- [x] Ensure signature verification distinguishes invalid signature, expired token, and malformed token failures cleanly
+- [x] Keep signing implementation isolated from route handlers so future asymmetric signing can be introduced without broad rewrites
 
 ### 4. Abuse Controls Around Issuance
-- [ ] Define how `/auth` integrates with rate limiting and request-context capture
-- [ ] Ensure issued tokens cannot exceed server-side maximums even if clients request broader allowances later
-- [ ] Define safe logging and observability behavior for issuance success, rejection, and suspicious patterns
+- [x] Define how `/auth` integrates with rate limiting and request-context capture
+- [x] Ensure issued tokens cannot exceed server-side maximums even if clients request broader allowances later
+- [x] Define safe logging and observability behavior for issuance success, rejection, and suspicious patterns
 
 ### 5. Test Coverage for Auth Behavior
-- [ ] Cover successful issuance flows for valid requests
-- [ ] Cover rejection cases for malformed inputs, expired verification attempts, and invalid signatures
-- [ ] Verify token contents and enforcement metadata are stable enough for downstream `/ai` consumption
+- [x] Cover successful issuance flows for valid requests
+- [x] Cover rejection cases for malformed inputs, expired verification attempts, and invalid signatures
+- [x] Verify token contents and enforcement metadata are stable enough for downstream `/ai` consumption
 
 ## Acceptance Criteria
-- [ ] `/auth` issues short-lived signed tokens for valid `appId` and `clientId` requests
-- [ ] Tokens encode the required enforcement claims and can be verified consistently by downstream handlers
-- [ ] Invalid, malformed, or expired tokens are distinguishable during verification without exposing sensitive details
-- [ ] `/auth` integrates cleanly with request context, rate limiting, and observability hooks
-- [ ] The signing utility is portable and does not lock the service to one runtime-specific implementation detail
+- [x] `/auth` issues short-lived signed tokens for valid `appId` and `clientId` requests
+- [x] Tokens encode the required enforcement claims and can be verified consistently by downstream handlers
+- [x] Invalid, malformed, or expired tokens are distinguishable during verification without exposing sensitive details
+- [x] `/auth` integrates cleanly with request context, rate limiting, and observability hooks
+- [x] The signing utility is portable and does not lock the service to one runtime-specific implementation detail

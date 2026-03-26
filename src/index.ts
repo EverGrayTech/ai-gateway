@@ -1,3 +1,4 @@
+export * from './auth/index.js';
 export * from './config/index.js';
 export * from './contracts/index.js';
 export * from './errors/index.js';
