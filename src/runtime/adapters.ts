@@ -63,9 +63,28 @@ export class StubProviderExecutor implements ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
-  }): Promise<{ output: string }> {
+  }): Promise<{
+    output: string;
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    };
+    stream?: AsyncIterable<{ event?: string; data: string }>;
+  }> {
+    const output = `stub:${input.provider}:${input.model}:${input.maxOutputTokens}:${input.prompt}`;
     return {
-      output: `stub:${input.provider}:${input.model}:${input.maxOutputTokens}:${input.prompt}`,
+      output,
+      usage: {
+        inputTokens: Math.ceil(input.prompt.length / 4),
+        outputTokens: Math.ceil(output.length / 4),
+        totalTokens: Math.ceil(input.prompt.length / 4) + Math.ceil(output.length / 4),
+      },
+      stream: input.stream
+        ? (async function* () {
+            yield { event: 'message', data: output };
+          })()
+        : undefined,
     };
   }
 }

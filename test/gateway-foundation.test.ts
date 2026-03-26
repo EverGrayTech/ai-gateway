@@ -3,6 +3,7 @@ import {
   HmacTokenSigner,
   NoopRateLimiter,
   NoopTelemetry,
+  OpenAiProviderExecutor,
   StubProviderExecutor,
   type TelemetryRecord,
   createGatewayPolicy,
@@ -192,6 +193,85 @@ describe('gateway foundation', () => {
     );
   });
 
+  it('executes hosted requests through the initial provider adapter with usage metadata', async () => {
+    const executor = new OpenAiProviderExecutor();
+
+    const result = await executor.execute({
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+      prompt: 'hello',
+      stream: false,
+      maxOutputTokens: 128,
+      context: {},
+    });
+
+    expect(result.output).toContain('openai:gpt-4o-mini:128:hello');
+    expect(result.usage?.totalTokens).toBeTypeOf('number');
+  });
+
+  it('supports incremental provider streaming passthrough', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: new OpenAiProviderExecutor(),
+    });
+
+    const authResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+    const authBody = (await authResponse.json()) as { token: string };
+
+    const streamResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/ai',
+      headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
+      text: async () =>
+        JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello', stream: true }),
+    });
+
+    expect(streamResponse.status).toBe(200);
+    const reader = streamResponse.body?.getReader();
+    if (!reader) {
+      throw new Error('expected readable stream body');
+    }
+
+    const chunks: string[] = [];
+    const decoder = new TextDecoder();
+    while (true) {
+      const next = await reader.read();
+      if (next.done) {
+        break;
+      }
+      chunks.push(decoder.decode(next.value));
+    }
+
+    expect(chunks.join('')).toContain('data: openai:gpt-4');
+    expect(chunks.join('')).toContain('data: o-mini:2048:');
+    expect(chunks.join('')).toContain('data: hello');
+  });
+
+  it('translates provider adapter failures into safe upstream errors', async () => {
+    const executor = new OpenAiProviderExecutor();
+
+    await expect(
+      executor.execute({
+        provider: 'anthropic',
+        model: 'claude',
+        prompt: 'hello',
+        stream: false,
+        maxOutputTokens: 128,
+        context: {},
+      }),
+    ).rejects.toMatchObject({
+      code: 'PROVIDER_MISMATCH',
+    });
+  });
+
   it('rejects invalid token signatures distinctly', async () => {
     const signer = new HmacTokenSigner('test-secret');
 
@@ -310,7 +390,7 @@ describe('gateway foundation', () => {
     }
 
     const aiBody = JSON.parse(aiResult.response.body) as { output: string };
-    expect(aiBody.output).toContain('stub:openai:gpt-4o-mini:2048:hello');
+    expect(aiBody.output).toContain('openai:gpt-4o-mini:2048:hello');
   });
 
   it('supports streaming-capable responses through the serverless adapter', async () => {

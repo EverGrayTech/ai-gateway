@@ -23,33 +23,33 @@ Define the hosted AI execution layer, including the provider abstraction, one in
 ## Implementation Checklist
 
 ### 1. Provider Abstraction Contracts
-- [ ] Define provider interfaces for request execution, streaming execution, response normalization, and error mapping
-- [ ] Define the provider/model metadata needed by the gateway without overcommitting to provider-specific feature parity
-- [ ] Ensure the abstraction can support future additional providers without reshaping the public gateway contract
+- [x] Define provider interfaces for request execution, streaming execution, response normalization, and error mapping
+- [x] Define the provider/model metadata needed by the gateway without overcommitting to provider-specific feature parity
+- [x] Ensure the abstraction can support future additional providers without reshaping the public gateway contract
 
 ### 2. Initial Concrete Provider Integration
-- [ ] Implement one initial provider adapter suitable for the hosted MVP path
-- [ ] Define environment configuration and credential handling for the initial provider
-- [ ] Ensure upstream request construction respects normalized gateway policy outputs rather than raw client payloads
+- [x] Implement one initial provider adapter suitable for the hosted MVP path
+- [x] Define environment configuration and credential handling for the initial provider
+- [x] Ensure upstream request construction respects normalized gateway policy outputs rather than raw client payloads
 
 ### 3. Response Normalization
-- [ ] Define a normalized non-streaming response contract for successful completions and provider-originated failures
-- [ ] Map upstream provider responses into gateway-safe output structures without leaking provider secrets or irrelevant internals
-- [ ] Capture approximate usage metadata when the provider makes it available
+- [x] Define a normalized non-streaming response contract for successful completions and provider-originated failures
+- [x] Map upstream provider responses into gateway-safe output structures without leaking provider secrets or irrelevant internals
+- [x] Capture approximate usage metadata when the provider makes it available
 
 ### 4. Streaming Passthrough Behavior
-- [ ] Define the normalized streaming contract exposed by the gateway to clients
-- [ ] Ensure streaming responses pass through incrementally rather than buffering the full completion first
-- [ ] Define graceful fallback or documented limitations for serverless runtimes where streaming capabilities vary
+- [x] Define the normalized streaming contract exposed by the gateway to clients
+- [x] Ensure streaming responses pass through incrementally rather than buffering the full completion first
+- [x] Define graceful fallback or documented limitations for serverless runtimes where streaming capabilities vary
 
 ### 5. Execution-Focused Test Coverage
-- [ ] Cover successful hosted execution for both standard and streaming requests
-- [ ] Cover provider-originated failure handling and safe error translation
-- [ ] Verify provider adapters cannot be invoked until upstream policy/auth/rate-limit checks have already passed
+- [x] Cover successful hosted execution for both standard and streaming requests
+- [x] Cover provider-originated failure handling and safe error translation
+- [x] Verify provider adapters cannot be invoked until upstream policy/auth/rate-limit checks have already passed
 
 ## Acceptance Criteria
-- [ ] The gateway exposes a provider abstraction with one working hosted provider implementation for MVP use
-- [ ] Hosted requests can execute through the gateway without exposing provider credentials to clients
-- [ ] Standard and streaming responses are both supported through normalized gateway behavior
-- [ ] Provider failures are translated into safe, consistent gateway responses
-- [ ] The design remains extensible for future providers without rewriting the enforcement or API layers
+- [x] The gateway exposes a provider abstraction with one working hosted provider implementation for MVP use
+- [x] Hosted requests can execute through the gateway without exposing provider credentials to clients
+- [x] Standard and streaming responses are both supported through normalized gateway behavior
+- [x] Provider failures are translated into safe, consistent gateway responses
+- [x] The design remains extensible for future providers without rewriting the enforcement or API layers

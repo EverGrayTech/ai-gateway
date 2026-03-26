@@ -53,7 +53,17 @@ const parseJsonBody = <T>(request: GatewayHttpRequest): T => {
   }
 };
 
-const streamOutput = async function* (output: string): AsyncIterable<GatewayStreamChunk> {
+const streamOutput = async function* (
+  output: string,
+  upstreamStream?: AsyncIterable<{ event?: string; data: string }>,
+): AsyncIterable<GatewayStreamChunk> {
+  if (upstreamStream) {
+    for await (const chunk of upstreamStream) {
+      yield chunk;
+    }
+    return;
+  }
+
   yield { event: 'message', data: output };
 };
 
@@ -242,6 +252,12 @@ export class GatewayService {
     });
 
     if (executionIntent.stream) {
+      await this.#dependencies.telemetry.record('ai.stream.started', {
+        ...redactFields(summarizeRequestContext(context)),
+        provider: executionIntent.provider,
+        model: executionIntent.model,
+      });
+
       return {
         kind: 'stream',
         response: {
@@ -250,10 +266,17 @@ export class GatewayService {
             'content-type': 'text/event-stream',
             'cache-control': 'no-cache',
           },
-          stream: streamOutput(execution.output),
+          stream: streamOutput(execution.output, execution.stream),
         },
       };
     }
+
+    await this.#dependencies.telemetry.record('ai.execution.completed', {
+      ...redactFields(summarizeRequestContext(context)),
+      provider: executionIntent.provider,
+      model: executionIntent.model,
+      usage: execution.usage,
+    });
 
     return {
       kind: 'response',
@@ -261,6 +284,7 @@ export class GatewayService {
         provider: executionIntent.provider,
         model: executionIntent.model,
         output: execution.output,
+        usage: execution.usage,
       }),
     };
   }

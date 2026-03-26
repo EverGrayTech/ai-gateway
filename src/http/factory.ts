@@ -3,6 +3,7 @@ import { loadGatewayConfig } from '../config/env.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type { Logger } from '../observability/logger.js';
 import { createLogger } from '../observability/logger.js';
+import { OpenAiProviderExecutor } from '../providers/openai.js';
 import { NoopRateLimiter, NoopTelemetry, StubProviderExecutor } from '../runtime/adapters.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from '../runtime/ports.js';
 import { GatewayService } from '../runtime/service.js';
@@ -24,7 +25,7 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
     logger,
     rateLimiter: options.rateLimiter ?? new NoopRateLimiter(),
     telemetry: options.telemetry ?? new NoopTelemetry(),
-    providerExecutor: options.providerExecutor ?? new StubProviderExecutor(),
+    providerExecutor: options.providerExecutor ?? new OpenAiProviderExecutor(),
     tokenSigner: new HmacTokenSigner(config.signingSecret),
   });
 };

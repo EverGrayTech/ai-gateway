@@ -5,5 +5,6 @@ export * from './errors/index.js';
 export * from './http/index.js';
 export * from './observability/index.js';
 export * from './policy/index.js';
+export * from './providers/index.js';
 export * from './runtime/index.js';
 export * from './serverless/index.js';

@@ -39,5 +39,16 @@ export interface ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
-  }): Promise<{ output: string }>;
+  }): Promise<{
+    output: string;
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    };
+    stream?: AsyncIterable<{
+      event?: string;
+      data: string;
+    }>;
+  }>;
 }

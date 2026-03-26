@@ -22,6 +22,11 @@ export interface AiSuccessResponse {
   provider: string;
   model: string;
   output: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 export interface NormalizedErrorResponse {
