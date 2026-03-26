@@ -10,7 +10,7 @@ export interface RateLimitPolicySet {
 
 export const DEFAULT_RATE_LIMIT_POLICIES: RateLimitPolicySet = {
   auth: {
-    limit: 10,
+    limit: 5,
     windowSeconds: 60,
   },
   ai: {

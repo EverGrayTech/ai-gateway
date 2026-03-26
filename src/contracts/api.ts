@@ -4,6 +4,35 @@ export interface AuthRequestBody {
   modelAllowlist?: readonly string[];
 }
 
+export const MAX_IDENTIFIER_LENGTH = 64;
+const IDENTIFIER_PATTERN = /^[a-z0-9](?:[a-z0-9-_.]{0,62}[a-z0-9])?$/;
+
+const normalizeIdentifier = (value: string, fieldName: 'appId' | 'clientId'): string => {
+  const normalized = value.trim().toLowerCase();
+
+  if (!normalized) {
+    throw new Error(`${fieldName} is required`);
+  }
+
+  if (normalized.length > MAX_IDENTIFIER_LENGTH) {
+    throw new Error(`${fieldName} must be at most ${MAX_IDENTIFIER_LENGTH} characters`);
+  }
+
+  if (!IDENTIFIER_PATTERN.test(normalized)) {
+    throw new Error(
+      `${fieldName} must contain only lowercase letters, numbers, hyphens, underscores, or periods`,
+    );
+  }
+
+  return normalized;
+};
+
+export const normalizeAuthRequest = (body: AuthRequestBody): AuthRequestBody => ({
+  appId: normalizeIdentifier(body.appId, 'appId'),
+  clientId: normalizeIdentifier(body.clientId, 'clientId'),
+  modelAllowlist: body.modelAllowlist,
+});
+
 export interface AuthSuccessResponse {
   token: string;
   expiresAt: string;

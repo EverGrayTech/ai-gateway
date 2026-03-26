@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { MAX_IDENTIFIER_LENGTH } from '../contracts/api.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import { authenticationError } from '../errors/factories.js';
 
@@ -73,7 +74,19 @@ const validateClaims = (claims: GatewayTokenClaims): GatewayTokenClaims => {
     throw authenticationError('Token is malformed', 'MALFORMED_TOKEN');
   }
 
+  if (
+    claims.appId.length > MAX_IDENTIFIER_LENGTH ||
+    claims.clientId.length > MAX_IDENTIFIER_LENGTH ||
+    claims.iss !== 'evergray-ai-gateway'
+  ) {
+    throw authenticationError('Token is malformed', 'MALFORMED_TOKEN');
+  }
+
   if (!Number.isFinite(claims.exp) || !Number.isFinite(claims.iat)) {
+    throw authenticationError('Token is malformed', 'MALFORMED_TOKEN');
+  }
+
+  if (claims.iat > claims.exp) {
     throw authenticationError('Token is malformed', 'MALFORMED_TOKEN');
   }
 
@@ -122,7 +135,8 @@ export const createTokenClaims = (
   now = new Date(),
 ): GatewayTokenClaims => {
   const iat = Math.floor(now.getTime() / 1000);
-  const exp = iat + config.defaults.tokenTtlSeconds;
+  const ttlSeconds = Math.min(config.defaults.tokenTtlSeconds, 300);
+  const exp = iat + ttlSeconds;
 
   return {
     appId: input.appId,

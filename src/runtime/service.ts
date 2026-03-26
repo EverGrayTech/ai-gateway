@@ -1,6 +1,10 @@
 import { type HmacTokenSigner, createTokenClaims } from '../auth/token.js';
 import type { GatewayTokenClaims } from '../auth/token.js';
-import type { AuthRequestBody, AuthSuccessResponse } from '../contracts/api.js';
+import {
+  type AuthRequestBody,
+  type AuthSuccessResponse,
+  normalizeAuthRequest,
+} from '../contracts/api.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type { RequestContext } from '../contracts/context.js';
 import type {
@@ -151,7 +155,7 @@ export class GatewayService {
     request: GatewayHttpRequest,
     setContext: (context: RequestContext) => void,
   ): Promise<GatewayHandlerResult> {
-    const body = parseJsonBody<AuthRequestBody>(request);
+    const body = normalizeAuthRequest(parseJsonBody<AuthRequestBody>(request));
     const context = createRequestContext(request, this.#dependencies.config, body);
     setContext(context);
 

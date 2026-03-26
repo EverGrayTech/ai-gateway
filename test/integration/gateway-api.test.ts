@@ -31,7 +31,7 @@ describe('integration gateway api', () => {
       providerExecutor: new StubProviderExecutor(),
     });
 
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       const result = await service.handle({
         method: 'POST',
         path: '/auth',
@@ -122,6 +122,63 @@ describe('integration gateway api', () => {
     };
     expect(aiBody.output).toBe('hello from openai');
     expect(aiBody.usage.totalTokens).toBe(5);
+  });
+
+  it('normalizes auth identifiers before token issuance and downstream verification', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
+      }),
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: ' My-App ', clientId: ' Client_01 ' }),
+      remoteAddress: '127.0.0.1',
+    });
+
+    expect(authResult.kind).toBe('response');
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const signer = new HmacTokenSigner('test-secret');
+    const verified = await signer.verify(authBody.token);
+
+    expect(verified.claims.appId).toBe('my-app');
+    expect(verified.claims.clientId).toBe('client_01');
+  });
+
+  it('rejects malformed auth identifiers before issuance', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'bad value!', clientId: 'client' }),
+      remoteAddress: '127.0.0.1',
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as { error: { code: string; message: string } };
+    expect(result.response.status).toBe(500);
+    expect(body.error.code).toBe('INTERNAL_ERROR');
   });
 
   it('supports streaming-capable responses through the serverless adapter', async () => {

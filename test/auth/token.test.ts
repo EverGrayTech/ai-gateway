@@ -44,4 +44,17 @@ describe('auth token', () => {
       code: 'EXPIRED_TOKEN',
     });
   });
+
+  it('caps issued token ttl to five minutes for abuse resistance', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      AI_GATEWAY_TOKEN_TTL_SECONDS: '600',
+    });
+
+    const now = new Date('2026-03-25T00:00:00.000Z');
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config, now);
+
+    expect(claims.exp - claims.iat).toBe(300);
+  });
 });
