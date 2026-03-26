@@ -420,4 +420,244 @@ describe('gateway foundation', () => {
     expect(streamResponse.status).toBe(200);
     expect(streamResponse.headers.get('content-type')).toContain('text/event-stream');
   });
+
+  it('supports default-model execution when ai model is omitted', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ provider: 'openai', input: 'hello' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const aiBody = JSON.parse(aiResult.response.body) as { model: string };
+    expect(aiBody.model).toBe('gpt-4o-mini');
+  });
+
+  it('rejects missing bearer token before provider execution', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {},
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    expect(result.response.status).toBe(401);
+    expect(body.error.code).toBe('MISSING_BEARER_TOKEN');
+  });
+
+  it('rejects expired bearer tokens before provider execution', async () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const signer = new HmacTokenSigner(config.signingSecret);
+    const expiredClaims = createTokenClaims(
+      { appId: 'app', clientId: 'client' },
+      config,
+      new Date(Date.now() - 600_000),
+    );
+    const token = await signer.sign(expiredClaims);
+    const service = createGatewayService({ config });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    expect(result.response.status).toBe(401);
+    expect(body.error.code).toBe('INVALID_BEARER_TOKEN');
+  });
+
+  it('rejects malformed ai requests through the public api surface', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: '{bad json',
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    expect(result.response.status).toBe(400);
+    expect(body.error.code).toBe('INVALID_JSON_BODY');
+  });
+
+  it('rejects unsupported models through the integrated api surface', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    expect(result.response.status).toBe(403);
+    expect(body.error.code).toBe('UNSUPPORTED_MODEL');
+  });
+
+  it('does not invoke provider execution when auth fails', async () => {
+    let called = false;
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          called = true;
+          return { output: 'should-not-run' };
+        },
+      },
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {},
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    expect(called).toBe(false);
+  });
+
+  it('does not invoke provider execution when policy rejects the request', async () => {
+    let called = false;
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          called = true;
+          return { output: 'should-not-run' };
+        },
+      },
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    expect(called).toBe(false);
+  });
 });

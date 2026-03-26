@@ -25,33 +25,33 @@ Assemble the `/auth` and `/ai` endpoints into a fully integrated serverless gate
 ## Implementation Checklist
 
 ### 1. Public Endpoint Assembly
-- [ ] Wire `/auth` into the shared request pipeline with request validation, rate limiting, token issuance, and observability
-- [ ] Wire `/ai` into the shared request pipeline with token verification, policy enforcement, provider execution, and observability
-- [ ] Ensure route assembly preserves the portability of the serverless adapter rather than embedding core logic in route files
+- [x] Wire `/auth` into the shared request pipeline with request validation, rate limiting, token issuance, and observability
+- [x] Wire `/ai` into the shared request pipeline with token verification, policy enforcement, provider execution, and observability
+- [x] Ensure route assembly preserves the portability of the serverless adapter rather than embedding core logic in route files
 
 ### 2. Hosted Execution Flow Validation
-- [ ] Verify the happy path from token issuance through successful hosted execution
-- [ ] Verify default-model execution behavior when clients omit an explicit model selection
-- [ ] Verify both non-streaming and streaming `/ai` requests follow the intended pipeline and response contract
+- [x] Verify the happy path from token issuance through successful hosted execution
+- [x] Verify default-model execution behavior when clients omit an explicit model selection
+- [x] Verify both non-streaming and streaming `/ai` requests follow the intended pipeline and response contract
 
 ### 3. Rejection and Failure Scenarios
-- [ ] Verify missing-token, invalid-signature, expired-token, malformed-request, unsupported-model, and rate-limited scenarios
-- [ ] Verify provider failures surface through safe, normalized gateway errors
-- [ ] Ensure rejected requests do not trigger unnecessary upstream provider work
+- [x] Verify missing-token, invalid-signature, expired-token, malformed-request, unsupported-model, and rate-limited scenarios
+- [x] Verify provider failures surface through safe, normalized gateway errors
+- [x] Ensure rejected requests do not trigger unnecessary upstream provider work
 
 ### 4. Multi-App Context Handling
-- [ ] Verify `appId` is required and flows through the request lifecycle as enforcement and observability context
-- [ ] Verify `clientId` is required where expected and participates in auth and abuse-prevention behavior
-- [ ] Ensure the integrated API leaves room for future per-app tuning without breaking the v1 contract
+- [x] Verify `appId` is required and flows through the request lifecycle as enforcement and observability context
+- [x] Verify `clientId` is required where expected and participates in auth and abuse-prevention behavior
+- [x] Ensure the integrated API leaves room for future per-app tuning without breaking the v1 contract
 
 ### 5. Integration Test Suite
-- [ ] Build integration coverage around the public serverless API surface rather than only internal modules
-- [ ] Ensure tests can run deterministically with mocked provider and infrastructure adapters
-- [ ] Align integration assertions with the explicit MVP acceptance criteria from the design doc
+- [x] Build integration coverage around the public serverless API surface rather than only internal modules
+- [x] Ensure tests can run deterministically with mocked provider and infrastructure adapters
+- [x] Align integration assertions with the explicit MVP acceptance criteria from the design doc
 
 ## Acceptance Criteria
-- [ ] Clients can obtain a signed token from `/auth` and use it successfully with `/ai`
-- [ ] Invalid, expired, or missing tokens are rejected before hosted execution begins
-- [ ] Only allowed models/providers can be used and all hard limits are enforced through the public API surface
-- [ ] Streaming responses function through the integrated gateway flow
-- [ ] The MVP acceptance criteria are exercised by automated integration coverage
+- [x] Clients can obtain a signed token from `/auth` and use it successfully with `/ai`
+- [x] Invalid, expired, or missing tokens are rejected before hosted execution begins
+- [x] Only allowed models/providers can be used and all hard limits are enforced through the public API surface
+- [x] Streaming responses function through the integrated gateway flow
+- [x] The MVP acceptance criteria are exercised by automated integration coverage
