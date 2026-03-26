@@ -62,6 +62,39 @@ describe('integration gateway api', () => {
     );
   });
 
+  it('wires external rate limiting through the gateway service without changing auth contract', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_RATE_LIMITER: 'external',
+      }),
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    const first = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+      remoteAddress: '127.0.0.1',
+    });
+
+    expect(first.kind).toBe('response');
+    if (first.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(first.response.body) as {
+      token: string;
+      issuedAt: string;
+      expiresAt: string;
+    };
+    expect(body.token).toBeTruthy();
+    expect(body.issuedAt).toBeTruthy();
+    expect(body.expiresAt).toBeTruthy();
+  });
+
   it('handles auth and ai requests through the shared service pipeline', async () => {
     const service = createGatewayService({
       config: loadGatewayConfig({

@@ -8,7 +8,13 @@ import { AnthropicProviderExecutor } from '../providers/anthropic.js';
 import { GeminiProviderExecutor } from '../providers/gemini.js';
 import { OpenAiProviderExecutor } from '../providers/openai.js';
 import { OpenRouterProviderExecutor } from '../providers/openrouter.js';
-import { NoopRateLimiter, NoopTelemetry, StubProviderExecutor } from '../runtime/adapters.js';
+import {
+  ExternalRateLimiter,
+  MemoryRateLimiterStore,
+  NoopRateLimiter,
+  NoopTelemetry,
+  StubProviderExecutor,
+} from '../runtime/adapters.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from '../runtime/ports.js';
 import { GatewayService } from '../runtime/service.js';
 
@@ -64,6 +70,21 @@ export interface CreateGatewayServiceOptions {
   providerExecutor?: ProviderExecutorPort;
 }
 
+const createRateLimiter = (config: GatewayConfig): RateLimiterPort => {
+  if (config.adapters.rateLimiter === 'external') {
+    return new ExternalRateLimiter({
+      store: new MemoryRateLimiterStore(),
+      failOpen: config.environment !== 'production',
+    });
+  }
+
+  if (config.environment === 'production') {
+    throw new Error('Production requires an external rate limiter backend');
+  }
+
+  return new NoopRateLimiter();
+};
+
 export const createGatewayService = (options: CreateGatewayServiceOptions = {}): GatewayService => {
   const config = options.config ?? loadGatewayConfig();
   const logger = options.logger ?? createLogger();
@@ -71,7 +92,7 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
   return new GatewayService({
     config,
     logger,
-    rateLimiter: options.rateLimiter ?? new NoopRateLimiter(),
+    rateLimiter: options.rateLimiter ?? createRateLimiter(config),
     telemetry: options.telemetry ?? new NoopTelemetry(),
     providerExecutor:
       options.providerExecutor ??

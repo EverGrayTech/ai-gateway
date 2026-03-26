@@ -112,6 +112,7 @@ export const loadGatewayConfig = (input: GatewayEnvInput = process.env): Gateway
     },
     adapters: {
       rateLimiter: input.AI_GATEWAY_RATE_LIMITER?.trim() || undefined,
+      rateLimiterUrl: input.AI_GATEWAY_RATE_LIMITER_URL?.trim() || undefined,
       telemetry: input.AI_GATEWAY_TELEMETRY?.trim() || undefined,
       providerRegistry: input.AI_GATEWAY_PROVIDER_REGISTRY?.trim() || undefined,
     },

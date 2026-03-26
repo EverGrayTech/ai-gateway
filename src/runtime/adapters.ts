@@ -1,5 +1,6 @@
 import type { RequestContext } from '../contracts/context.js';
 import type { GatewayHttpRequest } from '../contracts/http.js';
+import { upstreamError } from '../errors/factories.js';
 import type {
   ProviderExecutorPort,
   RateLimitDescriptor,
@@ -8,6 +9,13 @@ import type {
   TelemetryPort,
   TelemetryRecord,
 } from './ports.js';
+
+export interface ExternalRateLimiterStore {
+  increment(
+    key: string,
+    windowSeconds: number,
+  ): Promise<{ count: number; expiresInSeconds: number }>;
+}
 
 export class NoopRateLimiter implements RateLimiterPort {
   readonly #counts = new Map<string, { count: number; resetAt: number }>();
@@ -40,6 +48,69 @@ export class NoopRateLimiter implements RateLimiterPort {
       allowed: true,
       remaining: Math.max(0, descriptor.limit - existing.count),
     };
+  }
+}
+
+export class MemoryRateLimiterStore implements ExternalRateLimiterStore {
+  readonly #counts = new Map<string, { count: number; resetAt: number }>();
+
+  public async increment(
+    key: string,
+    windowSeconds: number,
+  ): Promise<{ count: number; expiresInSeconds: number }> {
+    const now = Date.now();
+    const existing = this.#counts.get(key);
+
+    if (!existing || existing.resetAt <= now) {
+      const resetAt = now + windowSeconds * 1000;
+      this.#counts.set(key, { count: 1, resetAt });
+      return { count: 1, expiresInSeconds: windowSeconds };
+    }
+
+    existing.count += 1;
+    return {
+      count: existing.count,
+      expiresInSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+    };
+  }
+}
+
+export class ExternalRateLimiter implements RateLimiterPort {
+  readonly #store: ExternalRateLimiterStore;
+  readonly #failOpen: boolean;
+
+  public constructor(options: { store: ExternalRateLimiterStore; failOpen?: boolean }) {
+    this.#store = options.store;
+    this.#failOpen = options.failOpen ?? false;
+  }
+
+  public async check(
+    descriptor: RateLimitDescriptor,
+    _context: RequestContext,
+    _request: GatewayHttpRequest,
+  ): Promise<RateLimitResult> {
+    try {
+      const result = await this.#store.increment(descriptor.key, descriptor.windowSeconds);
+
+      if (result.count > descriptor.limit) {
+        return {
+          allowed: false,
+          retryAfterSeconds: result.expiresInSeconds,
+          remaining: 0,
+        };
+      }
+
+      return {
+        allowed: true,
+        remaining: Math.max(0, descriptor.limit - result.count),
+      };
+    } catch (error) {
+      if (this.#failOpen) {
+        return { allowed: true };
+      }
+
+      throw upstreamError('Rate limiting backend is unavailable', 'RATE_LIMIT_BACKEND_UNAVAILABLE');
+    }
   }
 }
 

@@ -62,6 +62,7 @@ describe('config env', () => {
     expect(config.defaults.defaultModel).toBe('custom-model');
     expect(config.adapters).toEqual({
       rateLimiter: 'redis',
+      rateLimiterUrl: undefined,
       telemetry: 'otel',
       providerRegistry: 'registry',
     });
@@ -105,6 +106,7 @@ describe('config env', () => {
       OPENROUTER_API_KEY: '   ',
       OPENROUTER_BASE_URL: '   ',
       AI_GATEWAY_RATE_LIMITER: '   ',
+      AI_GATEWAY_RATE_LIMITER_URL: '   ',
       AI_GATEWAY_TELEMETRY: '   ',
       AI_GATEWAY_PROVIDER_REGISTRY: '   ',
     });
@@ -113,8 +115,22 @@ describe('config env', () => {
     expect(config.providerCredentials).toEqual({});
     expect(config.adapters).toEqual({
       rateLimiter: undefined,
+      rateLimiterUrl: undefined,
       telemetry: undefined,
       providerRegistry: undefined,
     });
+  });
+
+  it('loads external rate limiter operator wiring when configured', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'production',
+      AI_GATEWAY_SIGNING_SECRET: 'prod-secret',
+      OPENAI_API_KEY: 'openai-key',
+      AI_GATEWAY_RATE_LIMITER: 'external',
+      AI_GATEWAY_RATE_LIMITER_URL: ' redis://cache.internal:6379/0 ',
+    });
+
+    expect(config.adapters.rateLimiter).toBe('external');
+    expect(config.adapters.rateLimiterUrl).toBe('redis://cache.internal:6379/0');
   });
 });
