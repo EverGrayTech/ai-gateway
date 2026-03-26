@@ -27,6 +27,8 @@ describe('config env', () => {
       ANTHROPIC_BASE_URL: '  https://anthropic.example.test/v1  ',
       GEMINI_API_KEY: '  gemini-key  ',
       GEMINI_BASE_URL: '  https://gemini.example.test/v1  ',
+      OPENROUTER_API_KEY: '  openrouter-key  ',
+      OPENROUTER_BASE_URL: '  https://openrouter.example.test/v1  ',
       AI_GATEWAY_TOKEN_TTL_SECONDS: '600',
       AI_GATEWAY_DEFAULT_PROVIDER: '  custom-provider  ',
       AI_GATEWAY_DEFAULT_MODEL: '  custom-model  ',
@@ -49,6 +51,10 @@ describe('config env', () => {
       gemini: {
         apiKey: 'gemini-key',
         baseUrl: 'https://gemini.example.test/v1',
+      },
+      openrouter: {
+        apiKey: 'openrouter-key',
+        baseUrl: 'https://openrouter.example.test/v1',
       },
     });
     expect(config.defaults.tokenTtlSeconds).toBe(600);
@@ -96,6 +102,8 @@ describe('config env', () => {
       ANTHROPIC_BASE_URL: '   ',
       GEMINI_API_KEY: '   ',
       GEMINI_BASE_URL: '   ',
+      OPENROUTER_API_KEY: '   ',
+      OPENROUTER_BASE_URL: '   ',
       AI_GATEWAY_RATE_LIMITER: '   ',
       AI_GATEWAY_TELEMETRY: '   ',
       AI_GATEWAY_PROVIDER_REGISTRY: '   ',

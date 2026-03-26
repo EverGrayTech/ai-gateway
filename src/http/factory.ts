@@ -7,6 +7,7 @@ import { createLogger } from '../observability/logger.js';
 import { AnthropicProviderExecutor } from '../providers/anthropic.js';
 import { GeminiProviderExecutor } from '../providers/gemini.js';
 import { OpenAiProviderExecutor } from '../providers/openai.js';
+import { OpenRouterProviderExecutor } from '../providers/openrouter.js';
 import { NoopRateLimiter, NoopTelemetry, StubProviderExecutor } from '../runtime/adapters.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from '../runtime/ports.js';
 import { GatewayService } from '../runtime/service.js';
@@ -78,6 +79,7 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
         new OpenAiProviderExecutor(),
         new AnthropicProviderExecutor(),
         new GeminiProviderExecutor(),
+        new OpenRouterProviderExecutor(),
       ]),
     tokenSigner: new HmacTokenSigner(config.signingSecret),
   });

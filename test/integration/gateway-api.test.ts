@@ -6,6 +6,7 @@ import {
   NoopRateLimiter,
   NoopTelemetry,
   OpenAiProviderExecutor,
+  OpenRouterProviderExecutor,
   StubProviderExecutor,
   type TelemetryRecord,
   createGatewayService,
@@ -255,6 +256,48 @@ describe('integration gateway api', () => {
     const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
     expect(aiBody.provider).toBe('gemini');
     expect(aiBody.output).toContain('gemini:gemini-2.0-flash:2048:hi');
+  });
+
+  it('handles openrouter ai requests through the shared service pipeline when configured', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'openrouter-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openrouter',
+        AI_GATEWAY_DEFAULT_MODEL: 'openai/gpt-4o-mini',
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ provider: 'openrouter', model: 'openai/gpt-4o-mini', input: 'hi' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
+    expect(aiBody.provider).toBe('openrouter');
+    expect(aiBody.output).toContain('openrouter:openai/gpt-4o-mini:2048:hi');
   });
 
   it('rejects missing bearer token before provider execution', async () => {

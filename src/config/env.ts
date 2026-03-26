@@ -79,6 +79,13 @@ const collectProviderCredentials = (
     };
   }
 
+  if (input.OPENROUTER_API_KEY?.trim()) {
+    credentials.openrouter = {
+      apiKey: input.OPENROUTER_API_KEY.trim(),
+      baseUrl: input.OPENROUTER_BASE_URL?.trim() || undefined,
+    };
+  }
+
   if (environment === 'production' && Object.keys(credentials).length === 0) {
     throw validationError(
       'At least one provider credential is required in production',

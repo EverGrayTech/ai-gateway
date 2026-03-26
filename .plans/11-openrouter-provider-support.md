@@ -25,33 +25,33 @@ Add OpenRouter as a supported hosted provider behind the gateway abstraction whi
 ## Implementation Checklist
 
 ### 1. Provider Configuration and Credentials
-- [ ] Extend environment and configuration contracts to support OpenRouter credentials and any required server-side base configuration
-- [ ] Preserve safe startup validation so OpenRouter configuration errors fail fast and do not degrade request-time behavior
-- [ ] Keep OpenRouter configuration isolated behind the existing configuration seam to avoid coupling core gateway logic to aggregator-specific details
+- [x] Extend environment and configuration contracts to support OpenRouter credentials and any required server-side base configuration
+- [x] Preserve safe startup validation so OpenRouter configuration errors fail fast and do not degrade request-time behavior
+- [x] Keep OpenRouter configuration isolated behind the existing configuration seam to avoid coupling core gateway logic to aggregator-specific details
 
 ### 2. OpenRouter Model Governance and Registration
-- [ ] Define explicit OpenRouter model metadata and allowlisted hosted model identifiers approved for gateway use
-- [ ] Register OpenRouter within provider execution without changing the normalized gateway contract or weakening provider-selection enforcement
-- [ ] Ensure defaults and routing behavior remain explicit so OpenRouter availability does not implicitly broaden hosted model access
+- [x] Define explicit OpenRouter model metadata and allowlisted hosted model identifiers approved for gateway use
+- [x] Register OpenRouter within provider execution without changing the normalized gateway contract or weakening provider-selection enforcement
+- [x] Ensure defaults and routing behavior remain explicit so OpenRouter availability does not implicitly broaden hosted model access
 
 ### 3. Request Execution and Response Normalization
-- [ ] Implement an OpenRouter provider executor that maps normalized gateway input into controlled upstream requests
-- [ ] Normalize OpenRouter responses into the existing gateway success shape, including usage metadata when available through the upstream response
-- [ ] Translate OpenRouter and routed-upstream failures into safe gateway errors without exposing unnecessary aggregator or downstream provider internals
+- [x] Implement an OpenRouter provider executor that maps normalized gateway input into controlled upstream requests
+- [x] Normalize OpenRouter responses into the existing gateway success shape, including usage metadata when available through the upstream response
+- [x] Translate OpenRouter and routed-upstream failures into safe gateway errors without exposing unnecessary aggregator or downstream provider internals
 
 ### 4. Streaming Behavior
-- [ ] Adapt OpenRouter streaming behavior into the gateway’s normalized streaming contract expected by clients
-- [ ] Verify streamed responses remain incremental and compatible with the current serverless response model
-- [ ] Ensure provider-specific streaming metadata or routed-upstream event details are filtered or normalized before reaching clients
+- [x] Adapt OpenRouter streaming behavior into the gateway’s normalized streaming contract expected by clients
+- [x] Verify streamed responses remain incremental and compatible with the current serverless response model
+- [x] Ensure provider-specific streaming metadata or routed-upstream event details are filtered or normalized before reaching clients
 
 ### 5. Test Coverage and Contract Validation
-- [ ] Add provider tests for OpenRouter success, allowlist enforcement, provider/model mismatch handling, and safe failure translation
-- [ ] Extend config and integration tests where needed to validate OpenRouter credential loading and hosted execution wiring
-- [ ] Verify that OpenRouter support preserves existing OpenAI behavior and continues meeting repository coverage expectations
+- [x] Add provider tests for OpenRouter success, allowlist enforcement, provider/model mismatch handling, and safe failure translation
+- [x] Extend config and integration tests where needed to validate OpenRouter credential loading and hosted execution wiring
+- [x] Verify that OpenRouter support preserves existing OpenAI behavior and continues meeting repository coverage expectations
 
 ## Acceptance Criteria
-- [ ] OpenRouter can be configured as a hosted provider using server-side-only credentials and explicit model governance
-- [ ] Only approved OpenRouter-routed models can be invoked through the normalized `/ai` contract
-- [ ] OpenRouter standard and streaming responses are translated into safe gateway behavior without leaking aggregator-specific internals
-- [ ] OpenRouter failures are mapped into consistent gateway-safe errors
-- [ ] The gateway remains the enforcement boundary for provider and model access even when using an aggregator-backed provider
+- [x] OpenRouter can be configured as a hosted provider using server-side-only credentials and explicit model governance
+- [x] Only approved OpenRouter-routed models can be invoked through the normalized `/ai` contract
+- [x] OpenRouter standard and streaming responses are translated into safe gateway behavior without leaking aggregator-specific internals
+- [x] OpenRouter failures are mapped into consistent gateway-safe errors
+- [x] The gateway remains the enforcement boundary for provider and model access even when using an aggregator-backed provider
