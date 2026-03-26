@@ -26,45 +26,45 @@ Implement a real Anthropic upstream provider executor behind the existing `Provi
 ## Implementation Checklist
 
 ### 1. Provider Overview (Context Only)
-- [ ] Document the Anthropic execution and streaming API surface relevant to hosted request execution without exposing provider-native semantics beyond the executor boundary
-- [ ] Identify notable differences from OpenAI that require adaptation internally, such as request/response nesting, streaming event shapes, and usage metadata shape
-- [ ] Ensure the overview remains contextual only and does not redefine any gateway-level contract behavior
+- [x] Document the Anthropic execution and streaming API surface relevant to hosted request execution without exposing provider-native semantics beyond the executor boundary
+- [x] Identify notable differences from OpenAI that require adaptation internally, such as request/response nesting, streaming event shapes, and usage metadata shape
+- [x] Ensure the overview remains contextual only and does not redefine any gateway-level contract behavior
 
 ### 2. Request Mapping
-- [ ] Define the mapping from canonical gateway input (`provider`, `model`, `input`, `stream`, `maxOutputTokens`) into the Anthropic request body
-- [ ] Document how gateway `input` is represented in Anthropic-native request structure without introducing new gateway-level input fields
-- [ ] Keep all request construction provider-specific and fully contained within the Anthropic executor
+- [x] Define the mapping from canonical gateway input (`provider`, `model`, `input`, `stream`, `maxOutputTokens`) into the Anthropic request body
+- [x] Document how gateway `input` is represented in Anthropic-native request structure without introducing new gateway-level input fields
+- [x] Keep all request construction provider-specific and fully contained within the Anthropic executor
 
 ### 3. Response Normalization
-- [ ] Define how Anthropic non-streaming responses map back into the normalized gateway success shape (`provider`, `model`, `output`, `usage`)
-- [ ] Handle Anthropic-specific content structures internally so only normalized output text and usage data leave the executor
-- [ ] Normalize usage metadata on a best-effort basis when Anthropic supplies it
+- [x] Define how Anthropic non-streaming responses map back into the normalized gateway success shape (`provider`, `model`, `output`, `usage`)
+- [x] Handle Anthropic-specific content structures internally so only normalized output text and usage data leave the executor
+- [x] Normalize usage metadata on a best-effort basis when Anthropic supplies it
 
 ### 4. Streaming Adaptation
-- [ ] Adapt Anthropic streaming behavior into the existing normalized `AsyncIterable<{ event?, data }>` gateway contract
-- [ ] Ensure incremental chunk delivery, correct ordering, and provider-agnostic lifecycle behavior for chunk emission, completion, and error handling
-- [ ] Keep Anthropic-native stream event semantics fully contained within the executor and avoid introducing new streaming abstractions
+- [x] Adapt Anthropic streaming behavior into the existing normalized `AsyncIterable<{ event?, data }>` gateway contract
+- [x] Ensure incremental chunk delivery, correct ordering, and provider-agnostic lifecycle behavior for chunk emission, completion, and error handling
+- [x] Keep Anthropic-native stream event semantics fully contained within the executor and avoid introducing new streaming abstractions
 
 ### 5. Error Normalization
-- [ ] Map Anthropic-specific failures into the existing gateway upstream error model with safe messages, codes, and retryability classification where applicable
-- [ ] Prevent leakage of raw Anthropic payloads, headers, credentials, or unnecessary internal details in errors or logs
-- [ ] Ensure provider mismatch and model mismatch behavior remains compatible with the current provider execution flow
+- [x] Map Anthropic-specific failures into the existing gateway upstream error model with safe messages, codes, and retryability classification where applicable
+- [x] Prevent leakage of raw Anthropic payloads, headers, credentials, or unnecessary internal details in errors or logs
+- [x] Ensure provider mismatch and model mismatch behavior remains compatible with the current provider execution flow
 
 ### 6. Configuration and Credentials
-- [ ] Define Anthropic configuration requirements and credential usage through existing environment/config seams
-- [ ] Ensure Anthropic credentials remain server-side only and are never exposed through client-facing surfaces
-- [ ] Avoid introducing Anthropic-specific configuration concerns into core gateway service, policy, or runtime layers
+- [x] Define Anthropic configuration requirements and credential usage through existing environment/config seams
+- [x] Ensure Anthropic credentials remain server-side only and are never exposed through client-facing surfaces
+- [x] Avoid introducing Anthropic-specific configuration concerns into core gateway service, policy, or runtime layers
 
 ### 7. Integration with Existing System
-- [ ] Confirm Anthropic integration remains compatible with existing policy enforcement, model allowlisting, rate limiting, auth/token flow, and runtime service behavior
-- [ ] Ensure the Anthropic executor remains interchangeable with other providers through `ProviderExecutorPort`
-- [ ] Preserve serverless compatibility and gateway-level streaming semantics without adding provider-specific branching to shared layers
+- [x] Confirm Anthropic integration remains compatible with existing policy enforcement, model allowlisting, rate limiting, auth/token flow, and runtime service behavior
+- [x] Ensure the Anthropic executor remains interchangeable with other providers through `ProviderExecutorPort`
+- [x] Preserve serverless compatibility and gateway-level streaming semantics without adding provider-specific branching to shared layers
 
 ### 8. Testing Strategy
-- [ ] Add unit tests for Anthropic request mapping, response normalization, usage handling, and error normalization
-- [ ] Add streaming tests covering chunk handling, termination behavior, and failure scenarios for Anthropic stream adaptation
-- [ ] Add integration-style tests using mocked Anthropic responses and streaming payloads without depending on live Anthropic APIs
-- [ ] Preserve existing gateway contract tests to ensure Anthropic integration does not expand or reshape the client-facing API
+- [x] Add unit tests for Anthropic request mapping, response normalization, usage handling, and error normalization
+- [x] Add streaming tests covering chunk handling, termination behavior, and failure scenarios for Anthropic stream adaptation
+- [x] Add integration-style tests using mocked Anthropic responses and streaming payloads without depending on live Anthropic APIs
+- [x] Preserve existing gateway contract tests to ensure Anthropic integration does not expand or reshape the client-facing API
 
 ## Non-Goals
 - Redesigning the provider abstraction, gateway execution flow, or gateway-wide streaming contract
@@ -72,7 +72,7 @@ Implement a real Anthropic upstream provider executor behind the existing `Provi
 - Implementing cross-provider routing, fallback, retries, or cost optimization behavior
 
 ## Acceptance Criteria
-- [ ] Anthropic has a real upstream executor behind `ProviderExecutorPort`
-- [ ] Anthropic request/response and streaming behavior are fully normalized into existing gateway contracts without leaking provider-specific semantics
-- [ ] Anthropic errors are translated into the current gateway upstream error model safely and consistently
-- [ ] Existing auth, policy, rate-limiting, and runtime layers remain unchanged in public behavior while Anthropic support becomes real
+- [x] Anthropic has a real upstream executor behind `ProviderExecutorPort`
+- [x] Anthropic request/response and streaming behavior are fully normalized into existing gateway contracts without leaking provider-specific semantics
+- [x] Anthropic errors are translated into the current gateway upstream error model safely and consistently
+- [x] Existing auth, policy, rate-limiting, and runtime layers remain unchanged in public behavior while Anthropic support becomes real

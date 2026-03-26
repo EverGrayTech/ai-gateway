@@ -323,6 +323,17 @@ describe('integration gateway api', () => {
         AI_GATEWAY_DEFAULT_PROVIDER: 'anthropic',
         AI_GATEWAY_DEFAULT_MODEL: 'claude-3-5-haiku-latest',
       }),
+      providerExecutor: new AnthropicProviderExecutor({
+        credentials: { apiKey: 'anthropic-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              content: [{ type: 'text', text: 'hello from anthropic' }],
+              usage: { input_tokens: 2, output_tokens: 4 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      }),
     });
 
     const authResult = await service.handle({
@@ -357,7 +368,7 @@ describe('integration gateway api', () => {
 
     const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
     expect(aiBody.provider).toBe('anthropic');
-    expect(aiBody.output).toContain('anthropic:claude-3-5-haiku-latest:2048:hi');
+    expect(aiBody.output).toBe('hello from anthropic');
   });
 
   it('handles gemini ai requests through the shared service pipeline when configured', async () => {

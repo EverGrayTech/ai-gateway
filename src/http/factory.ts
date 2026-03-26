@@ -100,7 +100,9 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
         new OpenAiProviderExecutor({
           credentials: config.providerCredentials.openai,
         }),
-        new AnthropicProviderExecutor(),
+        new AnthropicProviderExecutor({
+          credentials: config.providerCredentials.anthropic,
+        }),
         new GeminiProviderExecutor(),
         new OpenRouterProviderExecutor(),
       ]),
