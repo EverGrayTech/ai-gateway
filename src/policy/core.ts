@@ -8,14 +8,16 @@ import type {
   ProviderExecutionIntent,
 } from '../contracts/policy.js';
 import { policyError, validationError } from '../errors/factories.js';
+import {
+  createAllowedModelsByProvider,
+  getSupportedModelsForProvider,
+} from '../providers/catalog.js';
 
 export const createGatewayPolicy = (config: GatewayConfig): GatewayPolicy => ({
-  allowedProviders: Object.keys(config.providerCredentials).length
-    ? Object.keys(config.providerCredentials)
+  allowedProviders: Object.keys(createAllowedModelsByProvider(config)).length
+    ? Object.keys(createAllowedModelsByProvider(config))
     : [config.defaults.defaultProvider],
-  allowedModelsByProvider: {
-    [config.defaults.defaultProvider]: [config.defaults.defaultModel],
-  },
+  allowedModelsByProvider: createAllowedModelsByProvider(config),
   defaultProvider: config.defaults.defaultProvider,
   defaultModel: config.defaults.defaultModel,
   maxInputTokens: config.defaults.maxInputTokens,
@@ -76,6 +78,11 @@ export const evaluateExecutionIntent = (
   const allowedModels = effectivePolicy.allowedModelsByProvider[provider] ?? [];
   if (!allowedModels.includes(model)) {
     throw policyError('Model is not allowed', 'UNSUPPORTED_MODEL');
+  }
+
+  const supportedModels = getSupportedModelsForProvider(provider);
+  if (!supportedModels.includes(model)) {
+    throw policyError('Model is not supported by provider', 'UNSUPPORTED_MODEL');
   }
 
   const tokenAllowlist = tokenClaims.constraints.modelAllowlist;

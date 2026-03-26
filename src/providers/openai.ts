@@ -3,14 +3,9 @@ import type { RequestContext } from '../contracts/context.js';
 import type { ProviderModelMetadata } from '../contracts/provider.js';
 import { upstreamError } from '../errors/factories.js';
 import type { ProviderExecutorPort } from '../runtime/ports.js';
+import { createProviderMetadata } from './catalog.js';
 
-const OPENAI_MODELS: readonly ProviderModelMetadata[] = [
-  {
-    provider: 'openai',
-    model: 'gpt-4o-mini',
-    supportsStreaming: true,
-  },
-];
+const OPENAI_MODELS: readonly ProviderModelMetadata[] = createProviderMetadata('openai');
 
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com';
 

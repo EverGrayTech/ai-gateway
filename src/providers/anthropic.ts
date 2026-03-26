@@ -3,14 +3,9 @@ import type { RequestContext } from '../contracts/context.js';
 import type { ProviderModelMetadata } from '../contracts/provider.js';
 import { upstreamError } from '../errors/factories.js';
 import type { ProviderExecutorPort } from '../runtime/ports.js';
+import { createProviderMetadata } from './catalog.js';
 
-const ANTHROPIC_MODELS: readonly ProviderModelMetadata[] = [
-  {
-    provider: 'anthropic',
-    model: 'claude-3-5-haiku-latest',
-    supportsStreaming: true,
-  },
-];
+const ANTHROPIC_MODELS: readonly ProviderModelMetadata[] = createProviderMetadata('anthropic');
 
 const DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
 

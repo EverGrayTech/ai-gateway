@@ -1,4 +1,5 @@
 export * from './openai.js';
+export * from './catalog.js';
 export * from './anthropic.js';
 export * from './gemini.js';
 export * from './openrouter.js';

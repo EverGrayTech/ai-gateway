@@ -3,14 +3,9 @@ import type { RequestContext } from '../contracts/context.js';
 import type { ProviderModelMetadata } from '../contracts/provider.js';
 import { upstreamError } from '../errors/factories.js';
 import type { ProviderExecutorPort } from '../runtime/ports.js';
+import { createProviderMetadata } from './catalog.js';
 
-const OPENROUTER_MODELS: readonly ProviderModelMetadata[] = [
-  {
-    provider: 'openrouter',
-    model: 'openai/gpt-4o-mini',
-    supportsStreaming: true,
-  },
-];
+const OPENROUTER_MODELS: readonly ProviderModelMetadata[] = createProviderMetadata('openrouter');
 
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 

@@ -3,6 +3,7 @@ import {
   createGatewayPolicy,
   createTokenClaims,
   evaluateExecutionIntent,
+  getSupportedModelsForProvider,
   loadGatewayConfig,
   normalizeAiRequest,
   resolveEffectivePolicy,
@@ -35,10 +36,19 @@ describe('policy core', () => {
       AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
       AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       OPENAI_API_KEY: 'openai-key',
+      ANTHROPIC_API_KEY: 'anthropic-key',
+      GEMINI_API_KEY: 'gemini-key',
+      OPENROUTER_API_KEY: 'openrouter-key',
     });
 
     const policy = createGatewayPolicy(config);
-    expect(policy.allowedProviders).toEqual(['openai']);
+    expect(policy.allowedProviders).toEqual(['openai', 'anthropic', 'gemini', 'openrouter']);
+    expect(policy.allowedModelsByProvider).toEqual({
+      openai: ['gpt-4o-mini'],
+      anthropic: ['claude-3-5-haiku-latest'],
+      gemini: ['gemini-2.0-flash'],
+      openrouter: ['openai/gpt-4o-mini'],
+    });
 
     const effective = resolveEffectivePolicy(
       {
@@ -86,24 +96,30 @@ describe('policy core', () => {
     const config = loadGatewayConfig({
       NODE_ENV: 'test',
       AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      OPENAI_API_KEY: 'openai-key',
     });
-    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+    const claims = createTokenClaims(
+      { appId: 'app', clientId: 'client', modelAllowlist: ['gpt-4o'] },
+      config,
+    );
     const policy = resolveEffectivePolicy(createGatewayPolicy(config), 'app');
 
     expect(() =>
       evaluateExecutionIntent(
-        normalizeAiRequest({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+        normalizeAiRequest({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
         claims,
         {
           ...policy,
-          allowedModelsByProvider: { openai: ['gpt-4o-mini', 'gpt-4o'] },
+          allowedModelsByProvider: { openai: ['gpt-4o-mini'] },
         },
       ),
     ).toThrow(/Model is not permitted by token constraints/);
 
+    const unrestrictedClaims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+
     const intent = evaluateExecutionIntent(
       normalizeAiRequest({ input: 'hello', maxOutputTokens: 9999 }),
-      claims,
+      unrestrictedClaims,
       {
         ...policy,
         maxOutputTokens: 1000,
@@ -132,6 +148,57 @@ describe('policy core', () => {
         resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
       ),
     ).toThrow(/Provider is not allowed/);
+  });
+
+  it('keeps policy allowlists aligned with canonical provider model support', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      OPENAI_API_KEY: 'openai-key',
+      ANTHROPIC_API_KEY: 'anthropic-key',
+      GEMINI_API_KEY: 'gemini-key',
+      OPENROUTER_API_KEY: 'openrouter-key',
+    });
+
+    const policy = createGatewayPolicy(config);
+
+    expect(policy.allowedModelsByProvider.openai).toEqual(getSupportedModelsForProvider('openai'));
+    expect(policy.allowedModelsByProvider.anthropic).toEqual(
+      getSupportedModelsForProvider('anthropic'),
+    );
+    expect(policy.allowedModelsByProvider.gemini).toEqual(getSupportedModelsForProvider('gemini'));
+    expect(policy.allowedModelsByProvider.openrouter).toEqual(
+      getSupportedModelsForProvider('openrouter'),
+    );
+  });
+
+  it('rejects models that are not in the provider canonical support set even if policy is overridden', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      OPENROUTER_API_KEY: 'openrouter-key',
+      AI_GATEWAY_DEFAULT_PROVIDER: 'openrouter',
+      AI_GATEWAY_DEFAULT_MODEL: 'openai/gpt-4o-mini',
+    });
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+
+    expect(() =>
+      evaluateExecutionIntent(
+        normalizeAiRequest({
+          provider: 'openrouter',
+          model: 'openai/gpt-4o',
+          input: 'hello',
+        }),
+        claims,
+        {
+          ...resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
+          allowedProviders: ['openrouter'],
+          allowedModelsByProvider: {
+            openrouter: ['openai/gpt-4o'],
+          },
+        },
+      ),
+    ).toThrow(/Model is not supported by provider/);
   });
 
   it('rejects input larger than token or policy limits', () => {
