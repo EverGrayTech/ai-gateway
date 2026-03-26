@@ -380,6 +380,27 @@ describe('integration gateway api', () => {
         AI_GATEWAY_DEFAULT_PROVIDER: 'gemini',
         AI_GATEWAY_DEFAULT_MODEL: 'gemini-2.0-flash',
       }),
+      providerExecutor: new GeminiProviderExecutor({
+        credentials: { apiKey: 'gemini-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [{ text: 'hello from gemini' }],
+                  },
+                },
+              ],
+              usageMetadata: {
+                promptTokenCount: 2,
+                candidatesTokenCount: 3,
+                totalTokenCount: 5,
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      }),
     });
 
     const authResult = await service.handle({
@@ -410,7 +431,7 @@ describe('integration gateway api', () => {
 
     const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
     expect(aiBody.provider).toBe('gemini');
-    expect(aiBody.output).toContain('gemini:gemini-2.0-flash:2048:hi');
+    expect(aiBody.output).toBe('hello from gemini');
   });
 
   it('handles openrouter ai requests through the shared service pipeline when configured', async () => {

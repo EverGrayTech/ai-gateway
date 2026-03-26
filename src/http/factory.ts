@@ -103,7 +103,9 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
         new AnthropicProviderExecutor({
           credentials: config.providerCredentials.anthropic,
         }),
-        new GeminiProviderExecutor(),
+        new GeminiProviderExecutor({
+          credentials: config.providerCredentials.gemini,
+        }),
         new OpenRouterProviderExecutor(),
       ]),
     tokenSigner: new HmacTokenSigner(config.signingSecret),
