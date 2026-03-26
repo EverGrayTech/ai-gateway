@@ -26,45 +26,45 @@ Implement a real OpenRouter upstream provider executor behind the existing `Prov
 ## Implementation Checklist
 
 ### 1. Provider Overview (Context Only)
-- [ ] Document the OpenRouter execution and streaming API surface relevant to hosted gateway execution without exposing aggregator-native semantics beyond the executor boundary
-- [ ] Identify notable differences from direct-provider integrations, including routed model identifiers, response metadata, and stream event behavior that require adaptation internally
-- [ ] Keep the overview contextual and avoid redefining gateway-level contracts around aggregator behavior
+- [x] Document the OpenRouter execution and streaming API surface relevant to hosted gateway execution without exposing aggregator-native semantics beyond the executor boundary
+- [x] Identify notable differences from direct-provider integrations, including routed model identifiers, response metadata, and stream event behavior that require adaptation internally
+- [x] Keep the overview contextual and avoid redefining gateway-level contracts around aggregator behavior
 
 ### 2. Request Mapping
-- [ ] Define the mapping from canonical gateway input (`provider`, `model`, `input`, `stream`, `maxOutputTokens`) into the OpenRouter request format
-- [ ] Document how gateway `input` is represented upstream without expanding or reshaping the gateway-level request contract
-- [ ] Ensure OpenRouter request construction remains controlled and fully contained inside the executor rather than broadening passthrough behavior
+- [x] Define the mapping from canonical gateway input (`provider`, `model`, `input`, `stream`, `maxOutputTokens`) into the OpenRouter request format
+- [x] Document how gateway `input` is represented upstream without expanding or reshaping the gateway-level request contract
+- [x] Ensure OpenRouter request construction remains controlled and fully contained inside the executor rather than broadening passthrough behavior
 
 ### 3. Response Normalization
-- [ ] Define how OpenRouter non-streaming responses normalize into the existing gateway success shape (`provider`, `model`, `output`, `usage`)
-- [ ] Handle OpenRouter- and routed-upstream-specific response structures internally so only normalized output text and usage metadata leave the executor
-- [ ] Normalize usage on a best-effort basis when OpenRouter supplies upstream usage data
+- [x] Define how OpenRouter non-streaming responses normalize into the existing gateway success shape (`provider`, `model`, `output`, `usage`)
+- [x] Handle OpenRouter- and routed-upstream-specific response structures internally so only normalized output text and usage metadata leave the executor
+- [x] Normalize usage on a best-effort basis when OpenRouter supplies upstream usage data
 
 ### 4. Streaming Adaptation
-- [ ] Adapt OpenRouter streaming behavior into the existing normalized `AsyncIterable<{ event?, data }>` gateway contract
-- [ ] Ensure incremental chunk delivery, correct ordering, and provider-agnostic lifecycle behavior for start, chunk emission, completion, and error handling
-- [ ] Keep OpenRouter- or routed-upstream-specific event semantics contained within the executor and avoid introducing new streaming abstractions
+- [x] Adapt OpenRouter streaming behavior into the existing normalized `AsyncIterable<{ event?, data }>` gateway contract
+- [x] Ensure incremental chunk delivery, correct ordering, and provider-agnostic lifecycle behavior for start, chunk emission, completion, and error handling
+- [x] Keep OpenRouter- or routed-upstream-specific event semantics contained within the executor and avoid introducing new streaming abstractions
 
 ### 5. Error Normalization
-- [ ] Map OpenRouter and routed-upstream failures into the existing gateway upstream error model with safe codes, messages, and retryability classification where applicable
-- [ ] Prevent leakage of raw OpenRouter payloads, routed-upstream internals, headers, or credentials in errors or logs
-- [ ] Ensure provider mismatch and model mismatch behavior remains compatible with the current provider execution contract
+- [x] Map OpenRouter and routed-upstream failures into the existing gateway upstream error model with safe codes, messages, and retryability classification where applicable
+- [x] Prevent leakage of raw OpenRouter payloads, routed-upstream internals, headers, or credentials in errors or logs
+- [x] Ensure provider mismatch and model mismatch behavior remains compatible with the current provider execution contract
 
 ### 6. Configuration and Credentials
-- [ ] Define OpenRouter configuration requirements and credential usage through existing environment/config seams
-- [ ] Ensure OpenRouter credentials remain server-side only and are never exposed through client-visible surfaces
-- [ ] Avoid introducing OpenRouter-specific configuration logic into core gateway service, policy, or runtime layers
+- [x] Define OpenRouter configuration requirements and credential usage through existing environment/config seams
+- [x] Ensure OpenRouter credentials remain server-side only and are never exposed through client-visible surfaces
+- [x] Avoid introducing OpenRouter-specific configuration logic into core gateway service, policy, or runtime layers
 
 ### 7. Integration with Existing System
-- [ ] Confirm OpenRouter integration remains compatible with current policy enforcement, model allowlisting, auth/token flow, rate limiting, and runtime service behavior
-- [ ] Ensure the OpenRouter executor remains fully interchangeable with other providers through `ProviderExecutorPort`
-- [ ] Preserve gateway governance so OpenRouter availability does not weaken provider selection or broaden hosted model access beyond current policy constraints
+- [x] Confirm OpenRouter integration remains compatible with current policy enforcement, model allowlisting, auth/token flow, rate limiting, and runtime service behavior
+- [x] Ensure the OpenRouter executor remains fully interchangeable with other providers through `ProviderExecutorPort`
+- [x] Preserve gateway governance so OpenRouter availability does not weaken provider selection or broaden hosted model access beyond current policy constraints
 
 ### 8. Testing Strategy
-- [ ] Add unit tests for OpenRouter request mapping, response normalization, usage handling, and error normalization
-- [ ] Add streaming tests covering OpenRouter chunk handling, termination behavior, and streaming failure scenarios
-- [ ] Add integration-style tests using mocked OpenRouter responses and stream payloads without depending on live OpenRouter APIs
-- [ ] Preserve existing gateway contract tests to ensure OpenRouter integration does not alter the client-facing `/ai` shape
+- [x] Add unit tests for OpenRouter request mapping, response normalization, usage handling, and error normalization
+- [x] Add streaming tests covering OpenRouter chunk handling, termination behavior, and streaming failure scenarios
+- [x] Add integration-style tests using mocked OpenRouter responses and stream payloads without depending on live OpenRouter APIs
+- [x] Preserve existing gateway contract tests to ensure OpenRouter integration does not alter the client-facing `/ai` shape
 
 ## Non-Goals
 - Redesigning the provider abstraction, execution flow, or gateway streaming contract
@@ -72,7 +72,7 @@ Implement a real OpenRouter upstream provider executor behind the existing `Prov
 - Allowing arbitrary passthrough routing, cross-provider fallback behavior, or cost optimization logic
 
 ## Acceptance Criteria
-- [ ] OpenRouter has a real upstream executor behind `ProviderExecutorPort`
-- [ ] OpenRouter request/response and streaming behavior are normalized into existing gateway contracts without aggregator-specific leakage
-- [ ] OpenRouter failures are translated into the current gateway upstream error model safely and consistently
-- [ ] Existing auth, policy, rate-limiting, and runtime layers preserve their current contract while OpenRouter support becomes real
+- [x] OpenRouter has a real upstream executor behind `ProviderExecutorPort`
+- [x] OpenRouter request/response and streaming behavior are normalized into existing gateway contracts without aggregator-specific leakage
+- [x] OpenRouter failures are translated into the current gateway upstream error model safely and consistently
+- [x] Existing auth, policy, rate-limiting, and runtime layers preserve their current contract while OpenRouter support becomes real

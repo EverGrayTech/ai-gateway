@@ -106,7 +106,9 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
         new GeminiProviderExecutor({
           credentials: config.providerCredentials.gemini,
         }),
-        new OpenRouterProviderExecutor(),
+        new OpenRouterProviderExecutor({
+          credentials: config.providerCredentials.openrouter,
+        }),
       ]),
     tokenSigner: new HmacTokenSigner(config.signingSecret),
   });

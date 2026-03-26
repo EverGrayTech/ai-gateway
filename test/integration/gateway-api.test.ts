@@ -443,6 +443,17 @@ describe('integration gateway api', () => {
         AI_GATEWAY_DEFAULT_PROVIDER: 'openrouter',
         AI_GATEWAY_DEFAULT_MODEL: 'openai/gpt-4o-mini',
       }),
+      providerExecutor: new OpenRouterProviderExecutor({
+        credentials: { apiKey: 'openrouter-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'hello from openrouter' } }],
+              usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      }),
     });
 
     const authResult = await service.handle({
@@ -473,7 +484,7 @@ describe('integration gateway api', () => {
 
     const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
     expect(aiBody.provider).toBe('openrouter');
-    expect(aiBody.output).toContain('openrouter:openai/gpt-4o-mini:2048:hi');
+    expect(aiBody.output).toBe('hello from openrouter');
   });
 
   it('rejects missing bearer token before provider execution', async () => {
