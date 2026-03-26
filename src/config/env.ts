@@ -65,6 +65,13 @@ const collectProviderCredentials = (
     };
   }
 
+  if (input.ANTHROPIC_API_KEY?.trim()) {
+    credentials.anthropic = {
+      apiKey: input.ANTHROPIC_API_KEY.trim(),
+      baseUrl: input.ANTHROPIC_BASE_URL?.trim() || undefined,
+    };
+  }
+
   if (environment === 'production' && Object.keys(credentials).length === 0) {
     throw validationError(
       'At least one provider credential is required in production',

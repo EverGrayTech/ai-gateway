@@ -25,33 +25,33 @@ Add Anthropic as a supported hosted provider behind the existing gateway provide
 ## Implementation Checklist
 
 ### 1. Provider Configuration and Credentials
-- [ ] Extend gateway environment contracts to support Anthropic credential inputs and any provider-specific base configuration needed for hosted execution
-- [ ] Preserve fast-fail configuration validation and production-safe requirements for server-side provider credentials
-- [ ] Keep Anthropic configuration isolated behind existing config and adapter boundaries so the core service remains portable
+- [x] Extend gateway environment contracts to support Anthropic credential inputs and any provider-specific base configuration needed for hosted execution
+- [x] Preserve fast-fail configuration validation and production-safe requirements for server-side provider credentials
+- [x] Keep Anthropic configuration isolated behind existing config and adapter boundaries so the core service remains portable
 
 ### 2. Anthropic Provider Metadata and Registration
-- [ ] Add Anthropic provider metadata and an explicit hosted model allowlist aligned with gateway policy expectations
-- [ ] Register Anthropic within the provider surface without changing the normalized public API contract
-- [ ] Ensure default-provider behavior and provider selection logic remain explicit and predictable when Anthropic is available
+- [x] Add Anthropic provider metadata and an explicit hosted model allowlist aligned with gateway policy expectations
+- [x] Register Anthropic within the provider surface without changing the normalized public API contract
+- [x] Ensure default-provider behavior and provider selection logic remain explicit and predictable when Anthropic is available
 
 ### 3. Request Execution and Response Normalization
-- [ ] Implement an Anthropic provider executor that accepts normalized gateway input and constructs provider-safe upstream requests
-- [ ] Map Anthropic responses into the existing normalized success shape, including approximate usage metadata when available
-- [ ] Translate Anthropic-originated failures into safe gateway errors without leaking provider internals, credentials, or unnecessary raw payload details
+- [x] Implement an Anthropic provider executor that accepts normalized gateway input and constructs provider-safe upstream requests
+- [x] Map Anthropic responses into the existing normalized success shape, including approximate usage metadata when available
+- [x] Translate Anthropic-originated failures into safe gateway errors without leaking provider internals, credentials, or unnecessary raw payload details
 
 ### 4. Streaming Behavior
-- [ ] Support Anthropic streaming through the normalized gateway streaming contract rather than exposing provider-native event semantics directly to clients
-- [ ] Verify that streaming remains incremental and serverless-compatible within the current runtime abstraction
-- [ ] Ensure unsupported or degraded runtime streaming behavior is handled through documented gateway-safe fallback expectations
+- [x] Support Anthropic streaming through the normalized gateway streaming contract rather than exposing provider-native event semantics directly to clients
+- [x] Verify that streaming remains incremental and serverless-compatible within the current runtime abstraction
+- [x] Ensure unsupported or degraded runtime streaming behavior is handled through documented gateway-safe fallback expectations
 
 ### 5. Test Coverage and Contract Validation
-- [ ] Add provider-level tests for Anthropic success, provider mismatch, model mismatch, and safe error translation behavior
-- [ ] Extend configuration and integration-oriented tests where needed to cover Anthropic credential loading and hosted execution wiring
-- [ ] Preserve repository coverage and verify Anthropic support does not regress existing OpenAI gateway behavior
+- [x] Add provider-level tests for Anthropic success, provider mismatch, model mismatch, and safe error translation behavior
+- [x] Extend configuration and integration-oriented tests where needed to cover Anthropic credential loading and hosted execution wiring
+- [x] Preserve repository coverage and verify Anthropic support does not regress existing OpenAI gateway behavior
 
 ## Acceptance Criteria
-- [ ] Anthropic can be configured as a hosted provider using server-side-only credentials
-- [ ] Approved Anthropic models can be executed through the normalized `/ai` contract without changing client integration shape
-- [ ] Anthropic standard and streaming responses are translated into safe gateway behavior
-- [ ] Anthropic failures are normalized into consistent gateway-safe errors
-- [ ] The provider abstraction remains portable and extensible after Anthropic support is added
+- [x] Anthropic can be configured as a hosted provider using server-side-only credentials
+- [x] Approved Anthropic models can be executed through the normalized `/ai` contract without changing client integration shape
+- [x] Anthropic standard and streaming responses are translated into safe gateway behavior
+- [x] Anthropic failures are normalized into consistent gateway-safe errors
+- [x] The provider abstraction remains portable and extensible after Anthropic support is added

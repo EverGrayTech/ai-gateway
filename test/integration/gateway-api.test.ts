@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   HmacTokenSigner,
+  AnthropicProviderExecutor,
   NoopRateLimiter,
   NoopTelemetry,
   OpenAiProviderExecutor,
@@ -169,6 +170,48 @@ describe('integration gateway api', () => {
 
     const aiBody = JSON.parse(aiResult.response.body) as { model: string };
     expect(aiBody.model).toBe('gpt-4o-mini');
+  });
+
+  it('handles anthropic ai requests through the shared service pipeline when configured', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        ANTHROPIC_API_KEY: 'anthropic-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'anthropic',
+        AI_GATEWAY_DEFAULT_MODEL: 'claude-3-5-haiku-latest',
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ provider: 'anthropic', model: 'claude-3-5-haiku-latest', input: 'hi' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const aiBody = JSON.parse(aiResult.response.body) as { output: string; provider: string };
+    expect(aiBody.provider).toBe('anthropic');
+    expect(aiBody.output).toContain('anthropic:claude-3-5-haiku-latest:2048:hi');
   });
 
   it('rejects missing bearer token before provider execution', async () => {

@@ -23,6 +23,8 @@ describe('config env', () => {
       AI_GATEWAY_SIGNING_SECRET: '  prod-secret  ',
       OPENAI_API_KEY: '  openai-key  ',
       OPENAI_BASE_URL: '  https://example.test/v1  ',
+      ANTHROPIC_API_KEY: '  anthropic-key  ',
+      ANTHROPIC_BASE_URL: '  https://anthropic.example.test/v1  ',
       AI_GATEWAY_TOKEN_TTL_SECONDS: '600',
       AI_GATEWAY_DEFAULT_PROVIDER: '  custom-provider  ',
       AI_GATEWAY_DEFAULT_MODEL: '  custom-model  ',
@@ -37,6 +39,10 @@ describe('config env', () => {
       openai: {
         apiKey: 'openai-key',
         baseUrl: 'https://example.test/v1',
+      },
+      anthropic: {
+        apiKey: 'anthropic-key',
+        baseUrl: 'https://anthropic.example.test/v1',
       },
     });
     expect(config.defaults.tokenTtlSeconds).toBe(600);
@@ -80,6 +86,8 @@ describe('config env', () => {
       AI_GATEWAY_SIGNING_SECRET: '  test-secret  ',
       OPENAI_API_KEY: '   ',
       OPENAI_BASE_URL: '   ',
+      ANTHROPIC_API_KEY: '   ',
+      ANTHROPIC_BASE_URL: '   ',
       AI_GATEWAY_RATE_LIMITER: '   ',
       AI_GATEWAY_TELEMETRY: '   ',
       AI_GATEWAY_PROVIDER_REGISTRY: '   ',
