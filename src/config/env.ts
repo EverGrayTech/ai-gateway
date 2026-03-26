@@ -72,6 +72,13 @@ const collectProviderCredentials = (
     };
   }
 
+  if (input.GEMINI_API_KEY?.trim()) {
+    credentials.gemini = {
+      apiKey: input.GEMINI_API_KEY.trim(),
+      baseUrl: input.GEMINI_BASE_URL?.trim() || undefined,
+    };
+  }
+
   if (environment === 'production' && Object.keys(credentials).length === 0) {
     throw validationError(
       'At least one provider credential is required in production',

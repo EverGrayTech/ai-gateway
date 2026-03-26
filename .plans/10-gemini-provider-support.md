@@ -25,33 +25,33 @@ Add Gemini as a supported hosted provider behind the gateway provider abstractio
 ## Implementation Checklist
 
 ### 1. Provider Configuration and Credentials
-- [ ] Extend environment and configuration contracts to support Gemini credentials and any required hosted endpoint configuration
-- [ ] Preserve startup-time validation so invalid or incomplete Gemini configuration fails safely before request handling
-- [ ] Keep Gemini configuration behind the existing configuration seam so runtime portability is preserved
+- [x] Extend environment and configuration contracts to support Gemini credentials and any required hosted endpoint configuration
+- [x] Preserve startup-time validation so invalid or incomplete Gemini configuration fails safely before request handling
+- [x] Keep Gemini configuration behind the existing configuration seam so runtime portability is preserved
 
 ### 2. Gemini Provider Metadata and Registration
-- [ ] Add Gemini provider metadata and a hosted model allowlist suitable for policy enforcement and default-provider selection logic
-- [ ] Register Gemini within the provider execution surface without changing the public gateway request contract
-- [ ] Ensure provider selection remains explicit and predictable when multiple hosted providers are available
+- [x] Add Gemini provider metadata and a hosted model allowlist suitable for policy enforcement and default-provider selection logic
+- [x] Register Gemini within the provider execution surface without changing the public gateway request contract
+- [x] Ensure provider selection remains explicit and predictable when multiple hosted providers are available
 
 ### 3. Request Execution and Response Normalization
-- [ ] Implement a Gemini provider executor that maps normalized gateway requests into provider-safe upstream calls
-- [ ] Normalize Gemini completion responses into the gateway success shape, including usage data when the provider supplies it
-- [ ] Translate Gemini-specific failures into safe, consistent gateway error categories without exposing provider-sensitive details
+- [x] Implement a Gemini provider executor that maps normalized gateway requests into provider-safe upstream calls
+- [x] Normalize Gemini completion responses into the gateway success shape, including usage data when the provider supplies it
+- [x] Translate Gemini-specific failures into safe, consistent gateway error categories without exposing provider-sensitive details
 
 ### 4. Streaming Behavior
-- [ ] Adapt Gemini streaming behavior into the normalized gateway event stream expected by downstream clients
-- [ ] Verify streaming remains incremental through the current serverless abstraction rather than buffering the full completion first
-- [ ] Document or enforce gateway-safe handling when runtime or provider behavior limits streaming fidelity
+- [x] Adapt Gemini streaming behavior into the normalized gateway event stream expected by downstream clients
+- [x] Verify streaming remains incremental through the current serverless abstraction rather than buffering the full completion first
+- [x] Document or enforce gateway-safe handling when runtime or provider behavior limits streaming fidelity
 
 ### 5. Test Coverage and Contract Validation
-- [ ] Add provider tests covering Gemini success paths, rejected provider/model mismatches, and safe failure translation
-- [ ] Extend config and integration tests where needed to validate Gemini credential loading and hosted execution wiring
-- [ ] Ensure Gemini support preserves coverage requirements and does not regress current hosted gateway behavior
+- [x] Add provider tests covering Gemini success paths, rejected provider/model mismatches, and safe failure translation
+- [x] Extend config and integration tests where needed to validate Gemini credential loading and hosted execution wiring
+- [x] Ensure Gemini support preserves coverage requirements and does not regress current hosted gateway behavior
 
 ## Acceptance Criteria
-- [ ] Gemini can be configured and executed as a hosted provider using server-side credentials only
-- [ ] Approved Gemini models are available through the normalized `/ai` contract without client-visible provider-specific reshaping
-- [ ] Gemini standard and streaming executions are supported through safe gateway normalization
-- [ ] Gemini upstream failures surface through consistent gateway-safe errors
-- [ ] The provider architecture remains extensible and serverless-portable after Gemini support is introduced
+- [x] Gemini can be configured and executed as a hosted provider using server-side credentials only
+- [x] Approved Gemini models are available through the normalized `/ai` contract without client-visible provider-specific reshaping
+- [x] Gemini standard and streaming executions are supported through safe gateway normalization
+- [x] Gemini upstream failures surface through consistent gateway-safe errors
+- [x] The provider architecture remains extensible and serverless-portable after Gemini support is introduced

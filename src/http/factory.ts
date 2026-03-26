@@ -5,6 +5,7 @@ import type { RequestContext } from '../contracts/context.js';
 import type { Logger } from '../observability/logger.js';
 import { createLogger } from '../observability/logger.js';
 import { AnthropicProviderExecutor } from '../providers/anthropic.js';
+import { GeminiProviderExecutor } from '../providers/gemini.js';
 import { OpenAiProviderExecutor } from '../providers/openai.js';
 import { NoopRateLimiter, NoopTelemetry, StubProviderExecutor } from '../runtime/adapters.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from '../runtime/ports.js';
@@ -76,6 +77,7 @@ export const createGatewayService = (options: CreateGatewayServiceOptions = {}):
       new CompositeProviderExecutor([
         new OpenAiProviderExecutor(),
         new AnthropicProviderExecutor(),
+        new GeminiProviderExecutor(),
       ]),
     tokenSigner: new HmacTokenSigner(config.signingSecret),
   });

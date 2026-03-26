@@ -37,6 +37,8 @@ export interface GatewayEnvInput {
   OPENAI_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;
   ANTHROPIC_BASE_URL?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_BASE_URL?: string;
   AI_GATEWAY_RATE_LIMITER?: string;
   AI_GATEWAY_TELEMETRY?: string;
   AI_GATEWAY_PROVIDER_REGISTRY?: string;
