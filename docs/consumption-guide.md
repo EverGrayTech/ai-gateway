@@ -59,6 +59,15 @@ Request body:
 
 `provider` may be omitted when client code already assumes the hosted default path, and `model` may be omitted to use the v1 hosted default model.
 
+The hosted gateway currently supports approved models under these provider identifiers:
+
+- `openai`
+- `anthropic`
+- `gemini`
+- `openrouter`
+
+The repository default remains `openai` with model `gpt-4o-mini`. Other providers must be explicitly configured by the operator and remain subject to gateway allowlisting.
+
 Non-streaming success response:
 
 ```json
@@ -115,7 +124,7 @@ The gateway:
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
-In v1, the hosted default model is `gpt-4o-mini`. If a client omits `model`, the gateway applies this default. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+In v1, the repository hosted default provider is `openai` and the default model is `gpt-4o-mini`. If a client omits `model`, the gateway applies the configured default for the active provider path. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
 
 ## Hosted path and direct-provider path
 
@@ -124,6 +133,7 @@ When the hosted gateway path is used:
 - clients do not send provider API keys to the browser
 - clients do not call upstream providers directly
 - gateway policy determines what hosted models and providers may be used
+- aggregator-backed providers such as `openrouter` remain governed by the same explicit hosted allowlists rather than exposing arbitrary upstream routing
 
 When a direct-provider bring-your-own-key path is used:
 

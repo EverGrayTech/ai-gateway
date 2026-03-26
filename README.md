@@ -38,7 +38,7 @@ The public hosted flow is:
 3. `POST /ai` with `Authorization: Bearer <token>` and a normalized hosted request body
 4. receive either JSON output or an SSE stream, depending on `stream`
 
-The current MVP hosted provider is `openai` with default model `gpt-4o-mini`. Unsupported providers/models, malformed payloads, missing or invalid tokens, and rate-limited requests are hard rejected by the gateway.
+The gateway currently supports hosted provider execution for `openai`, `anthropic`, `gemini`, and `openrouter`. The repository default remains `openai` with default model `gpt-4o-mini`, while other providers require explicit configuration and approved model selection. Unsupported providers/models, malformed payloads, missing or invalid tokens, and rate-limited requests are hard rejected by the gateway.
 
 ## Operator notes
 
@@ -46,6 +46,17 @@ The current MVP hosted provider is `openai` with default model `gpt-4o-mini`. Un
 - the gateway is designed for stateless serverless HTTP deployment
 - production-grade rate limiting, telemetry sinks, and provider credential management should be supplied through external adapters/infrastructure
 - streaming depends on runtime support for incremental HTTP response delivery
+
+## Provider configuration notes
+
+The current environment contract supports server-side credentials for these hosted providers:
+
+- `OPENAI_API_KEY` and optional `OPENAI_BASE_URL`
+- `ANTHROPIC_API_KEY` and optional `ANTHROPIC_BASE_URL`
+- `GEMINI_API_KEY` and optional `GEMINI_BASE_URL`
+- `OPENROUTER_API_KEY` and optional `OPENROUTER_BASE_URL`
+
+OpenRouter is treated as an explicitly governed hosted provider rather than an unrestricted passthrough. Approved provider/model combinations remain enforced by gateway policy.
 
 ## Package focus
 

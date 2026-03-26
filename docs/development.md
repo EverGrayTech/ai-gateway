@@ -58,7 +58,7 @@ The current repository test command enforces a global branch coverage threshold.
 Production operators should document and supply:
 
 - `AI_GATEWAY_SIGNING_SECRET` as a strong secret from managed secret storage
-- hosted provider credentials through server-side-only infrastructure wiring
+- hosted provider credentials through server-side-only infrastructure wiring, including any supported provider-specific API keys and optional base URLs
 - durable rate-limiting infrastructure for production coordination
 - telemetry sinks appropriate for the deployment environment
 

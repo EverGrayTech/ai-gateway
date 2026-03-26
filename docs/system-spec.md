@@ -14,6 +14,8 @@
 - return standard and streaming responses to clients
 - emit operational signals useful for monitoring service behavior
 
+The current hosted provider surface includes OpenAI, Anthropic, Gemini, and OpenRouter behind one normalized gateway contract.
+
 ## Deployment model
 
 - stateless serverless HTTP service
