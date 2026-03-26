@@ -26,7 +26,7 @@ describe('policy core', () => {
 
     expect(intent.provider).toBe('openai');
     expect(intent.model).toBe('gpt-4o-mini');
-    expect(intent.maxOutputTokens).toBe(2048);
+    expect(intent.maxOutputTokens).toBe(512);
   });
 
   it('creates policy defaults from configured credentials and app overrides', () => {
@@ -126,7 +126,7 @@ describe('policy core', () => {
       },
     );
 
-    expect(intent.maxOutputTokens).toBe(1000);
+    expect(intent.maxOutputTokens).toBe(512);
   });
 
   it('rejects unsupported provider selections', () => {

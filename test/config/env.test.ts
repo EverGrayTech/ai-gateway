@@ -8,7 +8,8 @@ describe('config env', () => {
     expect(config.environment).toBe('development');
     expect(config.signingSecret).toBe('development-signing-secret');
     expect(config.defaults.defaultProvider).toBe('openai');
-    expect(config.defaults.maxInputTokens).toBe(8192);
+    expect(config.defaults.maxInputTokens).toBe(4096);
+    expect(config.defaults.maxOutputTokens).toBe(512);
   });
 
   it('rejects missing production signing secret', () => {
@@ -60,12 +61,26 @@ describe('config env', () => {
     expect(config.defaults.tokenTtlSeconds).toBe(600);
     expect(config.defaults.defaultProvider).toBe('custom-provider');
     expect(config.defaults.defaultModel).toBe('custom-model');
+    expect(config.defaults.maxInputTokens).toBe(4096);
+    expect(config.defaults.maxOutputTokens).toBe(512);
     expect(config.adapters).toEqual({
       rateLimiter: 'redis',
       rateLimiterUrl: undefined,
       telemetry: 'otel',
       providerRegistry: 'registry',
     });
+  });
+
+  it('loads bounded hosted defaults when explicitly configured', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      AI_GATEWAY_MAX_INPUT_TOKENS: '1024',
+      AI_GATEWAY_MAX_OUTPUT_TOKENS: '256',
+    });
+
+    expect(config.defaults.maxInputTokens).toBe(1024);
+    expect(config.defaults.maxOutputTokens).toBe(256);
   });
 
   it('rejects unsupported environments and invalid token ttl values', () => {

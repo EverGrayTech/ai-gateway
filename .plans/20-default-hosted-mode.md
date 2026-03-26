@@ -27,52 +27,52 @@ Define and polish the default zero-setup hosted AI experience so users can immed
 ## Implementation Checklist
 
 ### 1. Default Execution Behavior
-- [ ] Define the zero-setup hosted experience as the existing hosted gateway path with one deterministic default provider and default model selected through current policy defaults
-- [ ] Ensure requests without user-provided provider credentials follow the hosted default path without requiring additional client-visible setup steps
-- [ ] Preserve deterministic behavior by explicitly avoiding routing, dynamic provider selection, or provider optimization logic in the hosted default path
+- [x] Define the zero-setup hosted experience as the existing hosted gateway path with one deterministic default provider and default model selected through current policy defaults
+- [x] Ensure requests without user-provided provider credentials follow the hosted default path without requiring additional client-visible setup steps
+- [x] Preserve deterministic behavior by explicitly avoiding routing, dynamic provider selection, or provider optimization logic in the hosted default path
 
 ### 2. Cost and Usage Guardrails
-- [ ] Tighten and document default hosted limits through existing policy and token constraints, including bounded `maxOutputTokens` and any related request-size limits appropriate for zero-setup usage
-- [ ] Ensure `/auth` and `/ai` rate-limiting behavior for the default hosted path remains strict enough to control cost and resist abuse without introducing new enforcement systems
-- [ ] Prevent escalation of default hosted usage through repeated token issuance by relying on the existing `/auth` hardening and rate-limiting posture rather than inventing a parallel hosted-mode limiter
+- [x] Tighten and document default hosted limits through existing policy and token constraints, including bounded `maxOutputTokens` and any related request-size limits appropriate for zero-setup usage
+- [x] Ensure `/auth` and `/ai` rate-limiting behavior for the default hosted path remains strict enough to control cost and resist abuse without introducing new enforcement systems
+- [x] Prevent escalation of default hosted usage through repeated token issuance by relying on the existing `/auth` hardening and rate-limiting posture rather than inventing a parallel hosted-mode limiter
 
 ### 3. Auth Integration
-- [ ] Define how the existing `/auth` flow supports the zero-setup hosted experience using the current short-lived signed-token model
-- [ ] Ensure issued hosted tokens are constrained, short-lived, and non-escalatable through existing token claims and policy defaults
-- [ ] Preserve client-visible simplicity so hosted default usage does not introduce additional auth complexity beyond the current `/auth` and `/ai` sequence
+- [x] Define how the existing `/auth` flow supports the zero-setup hosted experience using the current short-lived signed-token model
+- [x] Ensure issued hosted tokens are constrained, short-lived, and non-escalatable through existing token claims and policy defaults
+- [x] Preserve client-visible simplicity so hosted default usage does not introduce additional auth complexity beyond the current `/auth` and `/ai` sequence
 
 ### 4. ai-config Client Experience Integration
-- [ ] Define the expected integration contract with `@evergraytech/ai-config` so hosted mode is the automatic default when the user has not supplied a provider key
-- [ ] Define that BYOK selection occurs explicitly when a user provides their own provider credentials, while hosted mode remains the fallback/default path
-- [ ] Ensure mode switching is seamless and explicit at the `ai-config` layer without creating multiple overlapping gateway configuration paths
-- [ ] Keep this repo scoped to documenting and supporting the expected behavior contract, not implementing `ai-config` itself
+- [x] Define the expected integration contract with `@evergraytech/ai-config` so hosted mode is the automatic default when the user has not supplied a provider key
+- [x] Define that BYOK selection occurs explicitly when a user provides their own provider credentials, while hosted mode remains the fallback/default path
+- [x] Ensure mode switching is seamless and explicit at the `ai-config` layer without creating multiple overlapping gateway configuration paths
+- [x] Keep this repo scoped to documenting and supporting the expected behavior contract, not implementing `ai-config` itself
 
 ### 5. Mode Separation (Hosted vs BYOK)
-- [ ] Clearly define hosted execution as gateway-controlled execution using gateway-issued tokens, hosted provider credentials, hosted policy, and hosted rate limiting
-- [ ] Clearly define BYOK execution as user-controlled direct-provider execution outside the hosted gateway execution path
-- [ ] Ensure constraints, credentials, and enforcement semantics are never mixed across hosted and BYOK paths
-- [ ] Avoid introducing gateway branching logic that treats hosted and BYOK as parallel internal execution modes
+- [x] Clearly define hosted execution as gateway-controlled execution using gateway-issued tokens, hosted provider credentials, hosted policy, and hosted rate limiting
+- [x] Clearly define BYOK execution as user-controlled direct-provider execution outside the hosted gateway execution path
+- [x] Ensure constraints, credentials, and enforcement semantics are never mixed across hosted and BYOK paths
+- [x] Avoid introducing gateway branching logic that treats hosted and BYOK as parallel internal execution modes
 
 ### 6. Abuse Resistance
-- [ ] Ensure the default hosted path cannot be used to bypass rate limits, escalate token usage, or exploit differences between providers by relying on the existing policy, auth, identifier normalization, and rate-limiting mechanisms
-- [ ] Tighten default hosted behavior through existing default policy configuration rather than by adding special-case enforcement code paths
-- [ ] Confirm that default hosted behavior remains bounded even when users repeatedly request new hosted tokens or omit provider/model fields to rely on defaults
+- [x] Ensure the default hosted path cannot be used to bypass rate limits, escalate token usage, or exploit differences between providers by relying on the existing policy, auth, identifier normalization, and rate-limiting mechanisms
+- [x] Tighten default hosted behavior through existing default policy configuration rather than by adding special-case enforcement code paths
+- [x] Confirm that default hosted behavior remains bounded even when users repeatedly request new hosted tokens or omit provider/model fields to rely on defaults
 
 ### 7. Observability
-- [ ] Define operational visibility for hosted default usage volume, rejection rates, and limit-driven denials that may indicate cost-driving behavior
-- [ ] Ensure observability remains content-safe and does not log raw tokens, provider keys, or sensitive request payloads
-- [ ] Keep hosted-mode observability aligned with existing gateway telemetry patterns rather than introducing a parallel monitoring subsystem
+- [x] Define operational visibility for hosted default usage volume, rejection rates, and limit-driven denials that may indicate cost-driving behavior
+- [x] Ensure observability remains content-safe and does not log raw tokens, provider keys, or sensitive request payloads
+- [x] Keep hosted-mode observability aligned with existing gateway telemetry patterns rather than introducing a parallel monitoring subsystem
 
 ### 8. Integration with Existing Gateway Architecture
-- [ ] Confirm the default hosted path remains fully compatible with existing auth, policy enforcement, provider execution, rate limiting, and serverless runtime boundaries
-- [ ] Ensure the default hosted experience is expressed entirely through current gateway defaults and constraints rather than new abstraction layers or execution branches
-- [ ] Preserve clean coexistence with future provider integrations while keeping the initial zero-setup default deterministic and narrow
+- [x] Confirm the default hosted path remains fully compatible with existing auth, policy enforcement, provider execution, rate limiting, and serverless runtime boundaries
+- [x] Ensure the default hosted experience is expressed entirely through current gateway defaults and constraints rather than new abstraction layers or execution branches
+- [x] Preserve clean coexistence with future provider integrations while keeping the initial zero-setup default deterministic and narrow
 
 ### 9. Testing Strategy
-- [ ] Add end-to-end tests validating the zero-setup hosted flow works using current `/auth` and `/ai` contracts with omitted provider/model where appropriate
-- [ ] Add tests proving default hosted limits and rate limits are enforced through the existing gateway enforcement mechanisms
-- [ ] Add integration-oriented tests for the documented `ai-config` behavior contract, including hosted-by-default expectations and explicit BYOK override behavior at the integration boundary
-- [ ] Preserve existing gateway behavior coverage so default hosted polishing does not regress current hosted-path contracts or BYOK separation expectations
+- [x] Add end-to-end tests validating the zero-setup hosted flow works using current `/auth` and `/ai` contracts with omitted provider/model where appropriate
+- [x] Add tests proving default hosted limits and rate limits are enforced through the existing gateway enforcement mechanisms
+- [x] Add integration-oriented tests for the documented `ai-config` behavior contract, including hosted-by-default expectations and explicit BYOK override behavior at the integration boundary
+- [x] Preserve existing gateway behavior coverage so default hosted polishing does not regress current hosted-path contracts or BYOK separation expectations
 
 ## Non-Goals
 - Introducing a separate hosted-mode policy subsystem or special-case gateway execution branch
@@ -81,8 +81,8 @@ Define and polish the default zero-setup hosted AI experience so users can immed
 - Implementing `@evergraytech/ai-config` inside this repository rather than defining its integration expectations
 
 ## Acceptance Criteria
-- [ ] A zero-setup hosted experience is clearly defined as the bounded default use of the existing hosted gateway path
-- [ ] Default hosted behavior is controlled entirely through existing policy defaults, token constraints, and rate-limiting/auth mechanisms rather than a parallel mode-specific system
-- [ ] Hosted and BYOK paths remain clearly separated, with mode selection defined at the integration boundary and no mixed credential/enforcement behavior inside the gateway
-- [ ] Cost and abuse controls for default hosted usage are explicit, enforceable, and observable through existing gateway systems
-- [ ] The public `/ai` contract and overall gateway architecture remain unchanged while the default hosted experience becomes polished and predictable
+- [x] A zero-setup hosted experience is clearly defined as the bounded default use of the existing hosted gateway path
+- [x] Default hosted behavior is controlled entirely through existing policy defaults, token constraints, and rate-limiting/auth mechanisms rather than a parallel mode-specific system
+- [x] Hosted and BYOK paths remain clearly separated, with mode selection defined at the integration boundary and no mixed credential/enforcement behavior inside the gateway
+- [x] Cost and abuse controls for default hosted usage are explicit, enforceable, and observable through existing gateway systems
+- [x] The public `/ai` contract and overall gateway architecture remain unchanged while the default hosted experience becomes polished and predictable

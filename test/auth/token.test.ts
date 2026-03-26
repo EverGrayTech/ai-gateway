@@ -14,8 +14,8 @@ describe('auth token', () => {
 
     expect(verified.claims.appId).toBe('app');
     expect(verified.claims.clientId).toBe('client');
-    expect(verified.claims.constraints.maxInputTokens).toBe(8192);
-    expect(verified.claims.constraints.maxOutputTokens).toBe(2048);
+    expect(verified.claims.constraints.maxInputTokens).toBe(4096);
+    expect(verified.claims.constraints.maxOutputTokens).toBe(512);
     expect(verified.claims.constraints.modelAllowlist).toEqual(['gpt-4o-mini']);
   });
 

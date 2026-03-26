@@ -34,6 +34,8 @@ export interface GatewayEnvInput {
   AI_GATEWAY_DEFAULT_PROVIDER?: string;
   AI_GATEWAY_DEFAULT_MODEL?: string;
   AI_GATEWAY_TOKEN_TTL_SECONDS?: string;
+  AI_GATEWAY_MAX_INPUT_TOKENS?: string;
+  AI_GATEWAY_MAX_OUTPUT_TOKENS?: string;
   OPENAI_API_KEY?: string;
   OPENAI_BASE_URL?: string;
   ANTHROPIC_API_KEY?: string;

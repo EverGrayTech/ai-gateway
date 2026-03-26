@@ -40,9 +40,12 @@ The public hosted flow is:
 
 The gateway currently supports hosted provider execution for `openai`, `anthropic`, `gemini`, and `openrouter`. The repository default remains `openai` with default model `gpt-4o-mini`, while other providers require explicit configuration and approved model selection. Unsupported providers/models, malformed payloads, missing or invalid tokens, and rate-limited requests are hard rejected by the gateway.
 
+The default hosted experience is the existing hosted gateway path with bounded defaults. When downstream integrations omit `provider` and `model`, the gateway applies its configured default provider/model and existing request constraints rather than switching into a separate mode-specific policy path.
+
 ## Operator notes
 
 - production deployments must provide a strong `AI_GATEWAY_SIGNING_SECRET`
+- production deployments should explicitly set bounded hosted defaults such as `AI_GATEWAY_MAX_INPUT_TOKENS`, `AI_GATEWAY_MAX_OUTPUT_TOKENS`, and appropriate token TTL values for their cost and abuse posture
 - the gateway is designed for stateless serverless HTTP deployment
 - production-grade rate limiting, telemetry sinks, and provider credential management should be supplied through external adapters/infrastructure
 - streaming depends on runtime support for incremental HTTP response delivery

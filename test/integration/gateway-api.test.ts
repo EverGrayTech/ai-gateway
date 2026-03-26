@@ -314,6 +314,78 @@ describe('integration gateway api', () => {
     expect(aiBody.model).toBe('gpt-4o-mini');
   });
 
+  it('supports zero-setup hosted execution when provider and model are both omitted', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENAI_API_KEY: 'openai-key',
+      }),
+      providerExecutor: new OpenAiProviderExecutor({
+        credentials: { apiKey: 'openai-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              output: [{ content: [{ type: 'output_text', text: 'zero setup hosted output' }] }],
+              usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ input: 'hello default hosted path' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const aiBody = JSON.parse(aiResult.response.body) as {
+      provider: string;
+      model: string;
+      output: string;
+    };
+    expect(aiBody.provider).toBe('openai');
+    expect(aiBody.model).toBe('gpt-4o-mini');
+    expect(aiBody.output).toBe('zero setup hosted output');
+  });
+
+  it('applies bounded hosted defaults for token constraints in zero-setup mode', async () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      AI_GATEWAY_MAX_INPUT_TOKENS: '1024',
+      AI_GATEWAY_MAX_OUTPUT_TOKENS: '256',
+      AI_GATEWAY_TOKEN_TTL_SECONDS: '120',
+    });
+
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config, new Date());
+
+    expect(claims.constraints.maxInputTokens).toBe(1024);
+    expect(claims.constraints.maxOutputTokens).toBe(256);
+    expect(claims.exp - claims.iat).toBe(120);
+  });
+
   it('handles anthropic ai requests through the shared service pipeline when configured', async () => {
     const service = createGatewayService({
       config: loadGatewayConfig({

@@ -57,7 +57,7 @@ Request body:
 }
 ```
 
-`provider` may be omitted when client code already assumes the hosted default path, and `model` may be omitted to use the v1 hosted default model.
+`provider` may be omitted when client code already assumes the hosted default path, and `model` may be omitted to use the hosted default model.
 
 The hosted gateway currently supports approved models under these provider identifiers:
 
@@ -124,7 +124,23 @@ The gateway:
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
-In v1, the repository hosted default provider is `openai` and the default model is `gpt-4o-mini`. If a client omits `model`, the gateway applies the configured default for the active provider path. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+The repository hosted default provider is `openai` and the default model is `gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+
+## Default hosted behavior
+
+The default hosted path is designed to work with zero provider-key setup from the end user:
+
+- client integrations may omit `provider` and `model` and rely on the hosted gateway defaults
+- the gateway applies its configured default provider/model plus its configured request-size and output-token bounds
+- hosted execution remains constrained by the same signed-token, policy, identifier-normalization, and rate-limiting behavior used by all hosted requests
+
+This is not a separate hosted-mode policy system. It is the bounded default use of the existing hosted gateway path.
+
+For integrations using `@evergraytech/ai-config`:
+
+- hosted execution should be the automatic default when no user provider key is configured
+- bring-your-own-key execution should be selected explicitly when the user supplies their own provider credentials
+- hosted and BYOK flows should remain separate; hosted requests use gateway-issued tokens, while BYOK requests bypass the hosted `/auth` and `/ai` flow entirely
 
 ## Hosted path and direct-provider path
 
