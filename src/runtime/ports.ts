@@ -20,6 +20,7 @@ export interface ProviderExecutorPort {
     model: string;
     prompt: string;
     stream: boolean;
+    maxOutputTokens: number;
     context: RequestContext;
   }): Promise<{ output: string }>;
 }

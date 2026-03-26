@@ -87,6 +87,7 @@ export const loadGatewayConfig = (input: GatewayEnvInput = process.env): Gateway
       defaultProvider: input.AI_GATEWAY_DEFAULT_PROVIDER?.trim() || 'openai',
       defaultModel: input.AI_GATEWAY_DEFAULT_MODEL?.trim() || 'gpt-4o-mini',
       maxInputTokens: 8192,
+      maxOutputTokens: 2048,
     },
     adapters: {
       rateLimiter: input.AI_GATEWAY_RATE_LIMITER?.trim() || undefined,

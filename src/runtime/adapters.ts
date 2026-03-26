@@ -26,10 +26,11 @@ export class StubProviderExecutor implements ProviderExecutorPort {
     model: string;
     prompt: string;
     stream: boolean;
+    maxOutputTokens: number;
     context: RequestContext;
   }): Promise<{ output: string }> {
     return {
-      output: `stub:${input.provider}:${input.model}:${input.prompt}`,
+      output: `stub:${input.provider}:${input.model}:${input.maxOutputTokens}:${input.prompt}`,
     };
   }
 }

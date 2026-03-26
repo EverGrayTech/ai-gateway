@@ -1,4 +1,5 @@
 import { type HmacTokenSigner, createTokenClaims } from '../auth/token.js';
+import type { GatewayTokenClaims } from '../auth/token.js';
 import type { AuthRequestBody, AuthSuccessResponse } from '../contracts/api.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type { RequestContext } from '../contracts/context.js';
@@ -12,6 +13,12 @@ import { authenticationError, rateLimitError, validationError } from '../errors/
 import { normalizeErrorResponse } from '../errors/normalize.js';
 import type { Logger } from '../observability/logger.js';
 import { startRequestTimer, summarizeRequestContext } from '../observability/request.js';
+import {
+  createGatewayPolicy,
+  evaluateExecutionIntent,
+  normalizeAiRequest,
+  resolveEffectivePolicy,
+} from '../policy/core.js';
 import { createRequestContext } from './context.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from './ports.js';
 
@@ -176,10 +183,12 @@ export class GatewayService {
     }
 
     let identity: { appId?: string; clientId?: string };
+    let tokenClaims: GatewayTokenClaims;
     try {
       const verifiedToken = await this.#dependencies.tokenSigner.verify(
         authorization.slice('Bearer '.length),
       );
+      tokenClaims = verifiedToken.claims;
       identity = {
         appId: verifiedToken.claims.appId,
         clientId: verifiedToken.claims.clientId,
@@ -193,29 +202,41 @@ export class GatewayService {
 
     await this.enforceRateLimit(context, request);
 
-    const body = parseJsonBody<{
-      provider?: string;
-      model?: string;
-      input?: string;
-      stream?: boolean;
-    }>(request);
+    const body = parseJsonBody<
+      AuthRequestBody & {
+        provider?: string;
+        model?: string;
+        input: string;
+        stream?: boolean;
+        maxOutputTokens?: number;
+      }
+    >(request);
+    const normalizedRequest = normalizeAiRequest(body);
+    const policy = createGatewayPolicy(this.#dependencies.config);
+    const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
+    const executionIntent = evaluateExecutionIntent(
+      normalizedRequest,
+      tokenClaims,
+      effectivePolicy,
+    );
 
-    const provider = body.provider?.trim() || this.#dependencies.config.defaults.defaultProvider;
-    const model = body.model?.trim() || this.#dependencies.config.defaults.defaultModel;
-    const input = body.input?.trim();
-    if (!input) {
-      throw validationError('input is required', 'MISSING_AI_INPUT');
-    }
+    await this.#dependencies.telemetry.record('ai.policy.evaluated', {
+      ...summarizeRequestContext(context),
+      provider: executionIntent.provider,
+      model: executionIntent.model,
+      maxOutputTokens: executionIntent.maxOutputTokens,
+    });
 
     const execution = await this.#dependencies.providerExecutor.execute({
-      provider,
-      model,
-      prompt: input,
-      stream: Boolean(body.stream),
+      provider: executionIntent.provider,
+      model: executionIntent.model,
+      prompt: executionIntent.prompt,
+      stream: executionIntent.stream,
+      maxOutputTokens: executionIntent.maxOutputTokens,
       context,
     });
 
-    if (body.stream) {
+    if (executionIntent.stream) {
       return {
         kind: 'stream',
         response: {
@@ -232,8 +253,8 @@ export class GatewayService {
     return {
       kind: 'response',
       response: jsonResponse(200, {
-        provider,
-        model,
+        provider: executionIntent.provider,
+        model: executionIntent.model,
         output: execution.output,
       }),
     };

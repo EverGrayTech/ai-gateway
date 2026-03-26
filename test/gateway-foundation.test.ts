@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   HmacTokenSigner,
+  createGatewayPolicy,
   createGatewayService,
   createRequestContext,
   createServerlessHandler,
   createTokenClaims,
+  evaluateExecutionIntent,
   loadGatewayConfig,
+  normalizeAiRequest,
   normalizeErrorResponse,
+  resolveEffectivePolicy,
   validationError,
 } from '../src/index.js';
 
@@ -33,7 +37,67 @@ describe('gateway foundation', () => {
     expect(verified.claims.appId).toBe('app');
     expect(verified.claims.clientId).toBe('client');
     expect(verified.claims.constraints.maxInputTokens).toBe(8192);
+    expect(verified.claims.constraints.maxOutputTokens).toBe(2048);
     expect(verified.claims.constraints.modelAllowlist).toEqual(['gpt-4o-mini']);
+  });
+
+  it('normalizes ai requests and resolves execution intent through policy', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+    const normalized = normalizeAiRequest({
+      input: 'hello world',
+      maxOutputTokens: 5000,
+    });
+    const policy = createGatewayPolicy(config);
+    const effectivePolicy = resolveEffectivePolicy(policy, 'app');
+    const intent = evaluateExecutionIntent(normalized, claims, effectivePolicy);
+
+    expect(intent.provider).toBe('openai');
+    expect(intent.model).toBe('gpt-4o-mini');
+    expect(intent.maxOutputTokens).toBe(2048);
+  });
+
+  it('rejects unsupported provider selections', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+    const normalized = normalizeAiRequest({
+      provider: 'anthropic',
+      model: 'claude',
+      input: 'hello world',
+    });
+
+    expect(() =>
+      evaluateExecutionIntent(
+        normalized,
+        claims,
+        resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
+      ),
+    ).toThrow(/Provider is not allowed/);
+  });
+
+  it('rejects input larger than token or policy limits', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+    const claims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
+    const normalized = normalizeAiRequest({
+      input: 'x'.repeat(40_000),
+    });
+
+    expect(() =>
+      evaluateExecutionIntent(
+        normalized,
+        claims,
+        resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
+      ),
+    ).toThrow(/Input exceeds allowed size/);
   });
 
   it('rejects invalid token signatures distinctly', async () => {
@@ -154,7 +218,7 @@ describe('gateway foundation', () => {
     }
 
     const aiBody = JSON.parse(aiResult.response.body) as { output: string };
-    expect(aiBody.output).toContain('stub:openai:gpt-4o-mini:hello');
+    expect(aiBody.output).toContain('stub:openai:gpt-4o-mini:2048:hello');
   });
 
   it('supports streaming-capable responses through the serverless adapter', async () => {

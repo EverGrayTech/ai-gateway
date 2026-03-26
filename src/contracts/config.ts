@@ -10,6 +10,7 @@ export interface GatewayDefaults {
   defaultProvider: string;
   defaultModel: string;
   maxInputTokens: number;
+  maxOutputTokens: number;
 }
 
 export interface AdapterBindings {

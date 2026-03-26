@@ -11,10 +11,11 @@ export interface AuthSuccessResponse {
 }
 
 export interface AiRequestBody {
-  provider: string;
-  model: string;
+  provider?: string;
+  model?: string;
   input: string;
   stream?: boolean;
+  maxOutputTokens?: number;
 }
 
 export interface AiSuccessResponse {

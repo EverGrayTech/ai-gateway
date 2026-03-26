@@ -5,6 +5,7 @@ import { authenticationError } from '../errors/factories.js';
 
 export interface TokenConstraints {
   maxInputTokens: number;
+  maxOutputTokens: number;
   modelAllowlist?: readonly string[];
   metadata?: Readonly<Record<string, string>>;
 }
@@ -130,7 +131,8 @@ export const createTokenClaims = (
     exp,
     iss: 'evergray-ai-gateway',
     constraints: {
-      maxInputTokens: 8192,
+      maxInputTokens: config.defaults.maxInputTokens,
+      maxOutputTokens: config.defaults.maxOutputTokens,
       modelAllowlist: input.modelAllowlist ?? [config.defaults.defaultModel],
     },
   };
