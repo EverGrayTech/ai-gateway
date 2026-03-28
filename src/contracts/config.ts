@@ -16,6 +16,7 @@ export interface GatewayDefaults {
 export interface AdapterBindings {
   rateLimiter?: string;
   rateLimiterUrl?: string;
+  rateLimiterToken?: string;
   telemetry?: string;
   providerRegistry?: string;
 }
@@ -46,6 +47,8 @@ export interface GatewayEnvInput {
   OPENROUTER_BASE_URL?: string;
   AI_GATEWAY_RATE_LIMITER?: string;
   AI_GATEWAY_RATE_LIMITER_URL?: string;
+  UPSTASH_REDIS_REST_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
   AI_GATEWAY_TELEMETRY?: string;
   AI_GATEWAY_PROVIDER_REGISTRY?: string;
 }

@@ -66,6 +66,7 @@ describe('config env', () => {
     expect(config.adapters).toEqual({
       rateLimiter: 'redis',
       rateLimiterUrl: undefined,
+      rateLimiterToken: undefined,
       telemetry: 'otel',
       providerRegistry: 'registry',
     });
@@ -131,6 +132,7 @@ describe('config env', () => {
     expect(config.adapters).toEqual({
       rateLimiter: undefined,
       rateLimiterUrl: undefined,
+      rateLimiterToken: undefined,
       telemetry: undefined,
       providerRegistry: undefined,
     });
@@ -147,5 +149,24 @@ describe('config env', () => {
 
     expect(config.adapters.rateLimiter).toBe('external');
     expect(config.adapters.rateLimiterUrl).toBe('redis://cache.internal:6379/0');
+    expect(config.adapters.rateLimiterToken).toBeUndefined();
+  });
+
+  it('infers upstash rate limiter wiring from upstash environment variables', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'production',
+      AI_GATEWAY_SIGNING_SECRET: 'prod-secret',
+      OPENAI_API_KEY: 'openai-key',
+      UPSTASH_REDIS_REST_URL: ' https://example.upstash.io ',
+      UPSTASH_REDIS_REST_TOKEN: ' upstash-token ',
+    });
+
+    expect(config.adapters).toEqual({
+      rateLimiter: 'upstash',
+      rateLimiterUrl: 'https://example.upstash.io',
+      rateLimiterToken: 'upstash-token',
+      telemetry: undefined,
+      providerRegistry: undefined,
+    });
   });
 });

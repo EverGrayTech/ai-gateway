@@ -8,7 +8,54 @@ export interface FetchLikeRequest {
   text(): Promise<string>;
 }
 
-const headersToObject = (headers: Headers): Record<string, string> => {
+type NodeLikeHeaders = Record<string, string | readonly string[] | undefined>;
+
+interface NodeLikeRequest {
+  method?: string;
+  url?: string;
+  headers: NodeLikeHeaders;
+  body?: string;
+}
+
+interface HeaderAccessor {
+  get(name: string): string | null;
+  forEach(callback: (value: string, key: string) => void): void;
+}
+
+const isFetchLikeHeaders = (headers: Headers | NodeLikeHeaders): headers is Headers =>
+  typeof (headers as Headers).get === 'function';
+
+const toHeaderAccessor = (headers: Headers | NodeLikeHeaders): HeaderAccessor => {
+  if (isFetchLikeHeaders(headers)) {
+    return headers;
+  }
+
+  return {
+    get(name: string): string | null {
+      const value = headers[name.toLowerCase()];
+
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+
+      return value ?? null;
+    },
+    forEach(callback) {
+      for (const [key, value] of Object.entries(headers)) {
+        if (typeof value === 'undefined') {
+          continue;
+        }
+
+        callback(Array.isArray(value) ? value.join(', ') : value, key);
+      }
+    },
+  };
+};
+
+const isFetchLikeRequest = (request: FetchLikeRequest | NodeLikeRequest): request is FetchLikeRequest =>
+  typeof (request as FetchLikeRequest).text === 'function';
+
+const headersToObject = (headers: HeaderAccessor): Record<string, string> => {
   const result: Record<string, string> = {};
   headers.forEach((value, key) => {
     result[key] = value;
@@ -16,16 +63,35 @@ const headersToObject = (headers: Headers): Record<string, string> => {
   return result;
 };
 
+const resolveRequestUrl = (requestUrl: string, headers: HeaderAccessor): URL => {
+  if (!requestUrl.startsWith('/')) {
+    return new URL(requestUrl);
+  }
+
+  const forwardedProto = headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const forwardedHost = headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host = headers.get('host')?.trim();
+  const protocol = forwardedProto || 'https';
+  const hostname = forwardedHost || host;
+
+  if (!hostname) {
+    throw new TypeError(`Invalid URL: ${requestUrl}`);
+  }
+
+  return new URL(requestUrl, `${protocol}://${hostname}`);
+};
+
 export const toGatewayHttpRequest = async (
-  request: FetchLikeRequest,
+  request: FetchLikeRequest | NodeLikeRequest,
 ): Promise<GatewayHttpRequest> => {
-  const url = new URL(request.url);
-  const text = await request.text();
+  const headers = toHeaderAccessor(request.headers);
+  const url = resolveRequestUrl(request.url || '/', headers);
+  const text = isFetchLikeRequest(request) ? await request.text() : request.body || '';
 
   return {
-    method: request.method.toUpperCase(),
+    method: (request.method || 'GET').toUpperCase(),
     path: url.pathname,
-    headers: headersToObject(request.headers),
+    headers: headersToObject(headers),
     query: Object.fromEntries(url.searchParams.entries()),
     body: text || undefined,
   };
@@ -74,7 +140,7 @@ export const toFetchResponse = (result: GatewayHandlerResult): Response => {
 export const createServerlessHandler = (options: CreateGatewayServiceOptions = {}) => {
   const service = createGatewayService(options);
 
-  return async (request: FetchLikeRequest): Promise<Response> => {
+  return async (request: FetchLikeRequest | NodeLikeRequest): Promise<Response> => {
     const normalizedRequest = await toGatewayHttpRequest(request);
     const result = await service.handle(normalizedRequest);
     return toFetchResponse(result);

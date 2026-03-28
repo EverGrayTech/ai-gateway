@@ -14,7 +14,9 @@ import {
   NoopRateLimiter,
   NoopTelemetry,
   StubProviderExecutor,
+  UpstashRateLimiterStore,
 } from '../runtime/adapters.js';
+import { validationError } from '../errors/factories.js';
 import type { ProviderExecutorPort, RateLimiterPort, TelemetryPort } from '../runtime/ports.js';
 import { GatewayService } from '../runtime/service.js';
 
@@ -71,6 +73,23 @@ export interface CreateGatewayServiceOptions {
 }
 
 const createRateLimiter = (config: GatewayConfig): RateLimiterPort => {
+  if (config.adapters.rateLimiter === 'upstash') {
+    if (!config.adapters.rateLimiterUrl || !config.adapters.rateLimiterToken) {
+      throw validationError(
+        'Upstash rate limiter requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN',
+        'MISSING_RATE_LIMITER_CONFIGURATION',
+      );
+    }
+
+    return new ExternalRateLimiter({
+      store: new UpstashRateLimiterStore({
+        url: config.adapters.rateLimiterUrl,
+        token: config.adapters.rateLimiterToken,
+      }),
+      failOpen: config.environment !== 'production',
+    });
+  }
+
   if (config.adapters.rateLimiter === 'external') {
     return new ExternalRateLimiter({
       store: new MemoryRateLimiterStore(),

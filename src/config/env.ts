@@ -98,6 +98,13 @@ const collectProviderCredentials = (
 
 export const loadGatewayConfig = (input: GatewayEnvInput = process.env): GatewayConfig => {
   const environment = parseEnvironment(input.NODE_ENV);
+  const configuredRateLimiter = input.AI_GATEWAY_RATE_LIMITER?.trim() || undefined;
+  const upstashUrl = input.UPSTASH_REDIS_REST_URL?.trim() || undefined;
+  const upstashToken = input.UPSTASH_REDIS_REST_TOKEN?.trim() || undefined;
+  const inferredRateLimiter = configuredRateLimiter ?? (upstashUrl && upstashToken ? 'upstash' : undefined);
+  const inferredRateLimiterUrl =
+    input.AI_GATEWAY_RATE_LIMITER_URL?.trim() || upstashUrl || undefined;
+  const inferredRateLimiterToken = upstashToken;
 
   return {
     environment,
@@ -111,8 +118,9 @@ export const loadGatewayConfig = (input: GatewayEnvInput = process.env): Gateway
       maxOutputTokens: parsePositiveInt(input.AI_GATEWAY_MAX_OUTPUT_TOKENS, 512),
     },
     adapters: {
-      rateLimiter: input.AI_GATEWAY_RATE_LIMITER?.trim() || undefined,
-      rateLimiterUrl: input.AI_GATEWAY_RATE_LIMITER_URL?.trim() || undefined,
+      rateLimiter: inferredRateLimiter,
+      rateLimiterUrl: inferredRateLimiterUrl,
+      rateLimiterToken: inferredRateLimiterToken,
       telemetry: input.AI_GATEWAY_TELEMETRY?.trim() || undefined,
       providerRegistry: input.AI_GATEWAY_PROVIDER_REGISTRY?.trim() || undefined,
     },

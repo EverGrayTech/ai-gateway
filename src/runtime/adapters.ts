@@ -75,6 +75,63 @@ export class MemoryRateLimiterStore implements ExternalRateLimiterStore {
   }
 }
 
+export class UpstashRateLimiterStore implements ExternalRateLimiterStore {
+  readonly #url: string;
+  readonly #token: string;
+
+  public constructor(options: { url: string; token: string }) {
+    this.#url = options.url.replace(/\/$/, '');
+    this.#token = options.token;
+  }
+
+  public async increment(
+    key: string,
+    windowSeconds: number,
+  ): Promise<{ count: number; expiresInSeconds: number }> {
+    const pipelineUrl = `${this.#url}/pipeline`;
+    const response = await fetch(pipelineUrl, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${this.#token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify([
+        ['INCR', key],
+        ['EXPIRE', key, windowSeconds, 'NX'],
+        ['TTL', key],
+      ]),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upstash rate limiter request failed with status ${response.status}`);
+    }
+
+    const payload = (await response.json()) as Array<{ result?: unknown; error?: string }>;
+
+    if (!Array.isArray(payload) || payload.length < 3) {
+      throw new Error('Upstash rate limiter returned an unexpected response shape');
+    }
+
+    for (const entry of payload) {
+      if (entry?.error) {
+        throw new Error(`Upstash rate limiter error: ${entry.error}`);
+      }
+    }
+
+    const count = Number(payload[0]?.result);
+    const ttl = Number(payload[2]?.result);
+
+    if (!Number.isFinite(count) || count <= 0) {
+      throw new Error('Upstash rate limiter returned an invalid counter value');
+    }
+
+    return {
+      count,
+      expiresInSeconds: Number.isFinite(ttl) && ttl > 0 ? ttl : windowSeconds,
+    };
+  }
+}
+
 export class ExternalRateLimiter implements RateLimiterPort {
   readonly #store: ExternalRateLimiterStore;
   readonly #failOpen: boolean;

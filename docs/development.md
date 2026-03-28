@@ -59,7 +59,7 @@ Production operators should document and supply:
 
 - `AI_GATEWAY_SIGNING_SECRET` as a strong secret from managed secret storage
 - hosted provider credentials through server-side-only infrastructure wiring, including any supported provider-specific API keys and optional base URLs
-- durable rate-limiting infrastructure for production coordination
+- durable rate-limiting infrastructure for production coordination, including `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` when using Upstash Redis as the external backend
 - telemetry sinks appropriate for the deployment environment
 
 Development and local validation may use the repository's in-memory fallback adapters, but those are explicitly non-production implementations.
