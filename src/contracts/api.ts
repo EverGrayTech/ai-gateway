@@ -64,5 +64,9 @@ export interface NormalizedErrorResponse {
     category: 'validation' | 'authentication' | 'policy' | 'rate_limit' | 'upstream' | 'internal';
     message: string;
     requestId: string;
+    actionable?: {
+      summary: string;
+      details?: readonly string[];
+    };
   };
 }

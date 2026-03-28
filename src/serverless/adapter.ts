@@ -38,7 +38,7 @@ const toHeaderAccessor = (headers: Headers | NodeLikeHeaders): HeaderAccessor =>
         return value.join(', ');
       }
 
-      return value ?? null;
+      return typeof value === 'string' ? value : null;
     },
     forEach(callback) {
       for (const [key, value] of Object.entries(headers)) {
@@ -125,9 +125,18 @@ const eventStreamFromChunks = (
 
 export const toFetchResponse = (result: GatewayHandlerResult): Response => {
   if (result.kind === 'response') {
+    const headers = new Headers(result.response.headers);
+    if (!headers.has('content-type')) {
+      headers.set('content-type', 'text/plain; charset=utf-8');
+    }
+
+    if (!headers.has('content-length')) {
+      headers.set('content-length', new TextEncoder().encode(result.response.body).byteLength.toString());
+    }
+
     return new Response(result.response.body, {
       status: result.response.status,
-      headers: result.response.headers,
+      headers,
     });
   }
 
