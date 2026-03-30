@@ -46,6 +46,16 @@ const buildActionableDiagnostics = (gatewayError: GatewayError): NormalizedError
           'Check token expiration and signing secret consistency across environments.',
         ],
       };
+    case 'RATE_LIMIT_BACKEND_UNAVAILABLE':
+      return {
+        summary: 'The external rate-limiting backend could not be reached or returned an unusable response.',
+        details: [
+          'Verify that production rate-limiter configuration is present and correctly trimmed.',
+          'If using Upstash, verify UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the deployed environment.',
+          'Check whether the backend returned a non-200 response, invalid payload shape, or authentication failure.',
+          'Use the requestId to correlate logs and inspect the backend-specific detail included in the error message.',
+        ],
+      };
     default:
       return {
         summary:

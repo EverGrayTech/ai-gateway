@@ -32,12 +32,13 @@ export const rateLimitError = (message: string, code = 'RATE_LIMIT_EXCEEDED') =>
     status: 429,
   });
 
-export const upstreamError = (message: string, code = 'UPSTREAM_ERROR') =>
+export const upstreamError = (message: string, code = 'UPSTREAM_ERROR', cause?: unknown) =>
   new GatewayError({
     code,
     category: 'upstream',
     message,
     status: 502,
+    cause,
   });
 
 export const internalError = (message = 'Internal server error', cause?: unknown) =>
