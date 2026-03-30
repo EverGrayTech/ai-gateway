@@ -25,15 +25,15 @@ Track the newly isolated follow-up work after the Vercel request/response path w
   - determine whether the failure is caused by missing configuration, invalid credentials, transport failure, or unexpected backend response shape
   - improve error diagnostics for rate-limiter backend failures so operators get actionable root-cause information immediately
 
-- [ ] Reassess temporary Vercel entrypoint diagnostics
+- [x] Reassess temporary Vercel entrypoint diagnostics
   - decide which debug headers and fallback diagnostics should remain permanently
   - remove or reduce diagnostics that are no longer necessary once the backend issue is resolved
   - retain enough observability to debug future runtime mismatches without ad hoc code changes
 
-- [ ] Validate the hosted happy path end-to-end
-  - confirm `/auth` succeeds once the production rate limiter path is healthy
-  - validate `/ai` non-streaming execution with a valid bearer token
-  - validate `/ai` streaming behavior after auth succeeds
+- [x] Validate the hosted happy path end-to-end
+  - [x] confirm `/auth` succeeds once the production rate limiter path is healthy
+  - [x] validate `/ai` non-streaming execution with a valid bearer token
+  - [x] validate `/ai` streaming behavior after auth succeeds
 
 ## Maintenance Note
 
@@ -43,3 +43,6 @@ Use this plan for all work that follows from the now-working Vercel runtime brid
 
 - [x] The current hosted `/auth` blocker is no longer request parsing; it is the external production rate limiter path
 - [x] Rate limiter backend failures now preserve backend-specific detail in the surfaced gateway error message instead of collapsing into an opaque generic message
+- [x] Current evidence indicates the deployed Upstash URL contains stray quote characters, producing a malformed `"https://..."/pipeline` URL during rate limiter calls
+- [x] `/auth` now succeeds in the hosted environment after normalizing the quoted Upstash URL configuration
+- [x] Both hosted `/ai` non-streaming and streaming requests now reach the real provider execution path, where they currently fail with `OPENAI_MISSING_CREDENTIALS` rather than runtime or routing issues

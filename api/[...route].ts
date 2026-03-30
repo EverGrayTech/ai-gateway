@@ -187,11 +187,6 @@ export default async function handleRequest(
     diagnostics.stage = 'normalize-request';
     const normalizedRequest = await toFetchRequest(request, diagnostics);
 
-    response?.setHeader('x-ai-gateway-debug-body-source', diagnostics.bodySource ?? 'unknown');
-    response?.setHeader('x-ai-gateway-debug-body-length', String(diagnostics.bodyLength ?? -1));
-    response?.setHeader('x-ai-gateway-debug-normalized-path', diagnostics.normalizedPath ?? '');
-    response?.setHeader('x-ai-gateway-debug-body-preview', encodeURIComponent(diagnostics.bodyPreview ?? ''));
-
     diagnostics.stage = 'gateway-handler';
     const result = await handler(normalizedRequest);
 

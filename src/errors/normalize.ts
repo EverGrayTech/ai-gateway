@@ -52,6 +52,7 @@ const buildActionableDiagnostics = (gatewayError: GatewayError): NormalizedError
         details: [
           'Verify that production rate-limiter configuration is present and correctly trimmed.',
           'If using Upstash, verify UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in the deployed environment.',
+          'If the surfaced URL appears quoted (for example "https://..."/pipeline), the deployed URL value likely includes stray quote characters and should be corrected or trimmed.',
           'Check whether the backend returned a non-200 response, invalid payload shape, or authentication failure.',
           'Use the requestId to correlate logs and inspect the backend-specific detail included in the error message.',
         ],

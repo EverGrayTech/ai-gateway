@@ -80,7 +80,7 @@ export class UpstashRateLimiterStore implements ExternalRateLimiterStore {
   readonly #token: string;
 
   public constructor(options: { url: string; token: string }) {
-    this.#url = options.url.replace(/\/$/, '');
+    this.#url = options.url.trim().replace(/^"|"$/g, '').replace(/\/$/, '');
     this.#token = options.token;
   }
 
