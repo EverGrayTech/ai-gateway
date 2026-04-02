@@ -221,10 +221,6 @@ export class OpenRouterProviderExecutor implements ProviderExecutorPort {
       );
     }
 
-    if (!OPENROUTER_MODELS.some((entry) => entry.model === input.model)) {
-      throw upstreamError('Provider adapter does not support requested model', 'MODEL_MISMATCH');
-    }
-
     const resolvedCredentials = input.credentialsOverride ?? this.#credentials;
     const apiKey = resolvedCredentials?.apiKey?.trim();
     if (!apiKey) {

@@ -12,6 +12,7 @@ import { policyError, validationError } from '../errors/factories.js';
 import {
   createAllowedModelsByProvider,
   getSupportedModelsForProvider,
+  isSupportedProvider,
 } from '../providers/catalog.js';
 
 export const createGatewayPolicy = (config: GatewayConfig): GatewayPolicy => ({
@@ -152,22 +153,21 @@ export const evaluateByokExecutionIntent = (
     throw validationError('BYOK execution requires explicit provider, model, and provider credential.');
   }
 
-  const supportedModels = getSupportedModelsForProvider(request.provider);
-  if (supportedModels.length === 0) {
+  if (!isSupportedProvider(request.provider)) {
     throw validationError(`Unsupported provider "${request.provider}".`, 'request-invalid', {
       provider: request.provider,
       reason: 'provider_not_supported',
     });
   }
 
-  if (!supportedModels.includes(request.model)) {
+  if (!isValidByokModelForProvider(request.provider, request.model)) {
     throw validationError(
-      `Requested model "${request.model}" is not supported by provider "${request.provider}".`,
+      `Requested model "${request.model}" has an invalid format for provider "${request.provider}".`,
       'request-invalid',
       {
         provider: request.provider,
         model: request.model,
-        reason: 'model_not_supported_by_provider',
+        reason: 'model_invalid_for_provider',
       },
     );
   }
@@ -193,6 +193,27 @@ export const evaluateByokExecutionIntent = (
     stream: request.stream,
     maxOutputTokens,
   };
+};
+
+const hasInvalidModelCharacters = (model: string): boolean => /[\r\n\t]/.test(model);
+
+export const isValidByokModelForProvider = (provider: string, model: string): boolean => {
+  const normalizedModel = model.trim();
+
+  if (!normalizedModel || hasInvalidModelCharacters(normalizedModel)) {
+    return false;
+  }
+
+  switch (provider) {
+    case 'openrouter':
+      return /^[^\s\/]+\/[^^\s]+$/.test(normalizedModel);
+    case 'openai':
+    case 'anthropic':
+    case 'gemini':
+      return !/\s/.test(normalizedModel);
+    default:
+      return false;
+  }
 };
 
 export const countApproximateTokens = (input: string): number => Math.ceil(input.length / 4);

@@ -10,6 +10,9 @@ export const SUPPORTED_PROVIDER_MODELS = {
 
 export const getSupportedProviderNames = (): string[] => Object.keys(SUPPORTED_PROVIDER_MODELS);
 
+export const isSupportedProvider = (provider: string): boolean =>
+  getSupportedProviderNames().includes(provider);
+
 export const getSupportedModelsForProvider = (provider: string): readonly string[] =>
   SUPPORTED_PROVIDER_MODELS[provider as keyof typeof SUPPORTED_PROVIDER_MODELS] ?? [];
 

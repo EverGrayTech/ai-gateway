@@ -253,6 +253,123 @@ describe('integration gateway api', () => {
     expect(body.output).toBe('hello from byok');
   });
 
+  it('supports explicit OpenRouter BYOK execution with a format-valid non-catalog model identifier', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: new OpenRouterProviderExecutor({
+        fetchFn: async (_input, init) => {
+          expect(init?.headers).toMatchObject({ authorization: 'Bearer byok-key' });
+          expect(String(init?.body)).toContain('"model":"anthropic/claude-3.5-sonnet"');
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'hello from openrouter byok passthrough' } }],
+              usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        },
+      }),
+    });
+
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: { 'x-eg-ai-provider-credential': 'byok-key' },
+      body: JSON.stringify({
+        provider: 'openrouter',
+        model: 'anthropic/claude-3.5-sonnet',
+        input: 'hello',
+      }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(aiResult.response.body) as { provider: string; model: string; output: string };
+    expect(body.provider).toBe('openrouter');
+    expect(body.model).toBe('anthropic/claude-3.5-sonnet');
+    expect(body.output).toBe('hello from openrouter byok passthrough');
+  });
+
+  it('prefers explicit BYOK routing over bearer auth when both are present', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'hosted-openrouter-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openrouter',
+        AI_GATEWAY_DEFAULT_MODEL: 'openai/gpt-4o-mini',
+      }),
+      providerExecutor: new OpenRouterProviderExecutor({
+        fetchFn: async (_input, init) => {
+          expect(init?.headers).toMatchObject({ authorization: 'Bearer byok-key' });
+          expect(String(init?.body)).toContain('"model":"anthropic/claude-3.5-sonnet"');
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'byok wins over bearer' } }],
+              usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        },
+      }),
+    });
+
+    const token = await issueAuthToken(service);
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'x-eg-ai-provider-credential': 'byok-key',
+      },
+      body: JSON.stringify({
+        provider: 'openrouter',
+        model: 'anthropic/claude-3.5-sonnet',
+        input: 'hello',
+      }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(aiResult.response.body) as { provider: string; model: string; output: string };
+    expect(body.provider).toBe('openrouter');
+    expect(body.model).toBe('anthropic/claude-3.5-sonnet');
+    expect(body.output).toBe('byok wins over bearer');
+  });
+
+  it('rejects explicit BYOK requests with invalid OpenRouter model format', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({ NODE_ENV: 'test', AI_GATEWAY_SIGNING_SECRET: 'test-secret' }),
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: { 'x-eg-ai-provider-credential': 'byok-key' },
+      body: JSON.stringify({ provider: 'openrouter', model: 'claude-3.5-sonnet', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(result.response.body) as { code: string; details?: Record<string, unknown> };
+    expect(result.response.status).toBe(400);
+    expect(body.code).toBe('request-invalid');
+    expect(body.details).toMatchObject({ reason: 'model_invalid_for_provider', provider: 'openrouter' });
+  });
+
   it('rejects provider and model without provider credential as an invalid request shape', async () => {
     const service = createGatewayService({
       config: loadGatewayConfig({ NODE_ENV: 'test', AI_GATEWAY_SIGNING_SECRET: 'test-secret' }),

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   createGatewayPolicy,
   createTokenClaims,
+  evaluateByokExecutionIntent,
   evaluateExecutionIntent,
   getSupportedModelsForProvider,
   loadGatewayConfig,
   normalizeAiRequest,
+  resolveAiRequestShape,
   resolveEffectivePolicy,
 } from '../../src/index.js';
 
@@ -199,6 +201,49 @@ describe('policy core', () => {
         },
       ),
     ).toThrow(/Requested model .* is not supported by provider/);
+  });
+
+  it('allows explicit BYOK models that are not in the static catalog when format-valid for the provider', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+
+    const effectivePolicy = resolveEffectivePolicy(createGatewayPolicy(config), 'byok-app');
+    const requestShape = resolveAiRequestShape(
+      normalizeAiRequest({
+        provider: 'openrouter',
+        model: 'anthropic/claude-3.5-sonnet',
+        input: 'hello',
+      }),
+      'byok-key',
+    );
+
+    const intent = evaluateByokExecutionIntent(requestShape, effectivePolicy);
+
+    expect(intent.provider).toBe('openrouter');
+    expect(intent.model).toBe('anthropic/claude-3.5-sonnet');
+  });
+
+  it('rejects explicit BYOK models with invalid provider-specific format', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+    });
+
+    const effectivePolicy = resolveEffectivePolicy(createGatewayPolicy(config), 'byok-app');
+    const requestShape = resolveAiRequestShape(
+      normalizeAiRequest({
+        provider: 'openrouter',
+        model: 'claude-3.5-sonnet',
+        input: 'hello',
+      }),
+      'byok-key',
+    );
+
+    expect(() => evaluateByokExecutionIntent(requestShape, effectivePolicy)).toThrow(
+      /has an invalid format for provider/,
+    );
   });
 
   it('rejects input larger than token or policy limits', () => {

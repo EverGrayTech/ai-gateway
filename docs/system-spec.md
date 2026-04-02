@@ -42,8 +42,8 @@ The gateway supports two `/ai` request shapes:
    4. gateway validates, enforces, executes, and responds using configured hosted defaults
 2. **Explicit BYOK**
    1. client calls `/ai` with `provider`, `model`, and `X-EG-AI-Provider-Credential`
-   2. gateway validates the explicit request shape and supported provider/model
-   3. gateway executes the request with the supplied raw provider credential without persisting it
+   2. gateway validates the explicit request shape, validates that the provider is supported, and applies only minimal model-format checks required for safe forwarding
+   3. gateway executes the request with the supplied raw provider credential and passes the supplied model through to the upstream provider without persisting the credential
    4. gateway responds through the same standard or streaming response contract
 
 ## Enforcement model
@@ -52,7 +52,7 @@ The gateway supports two `/ai` request shapes:
 - invalid, expired, or malformed hosted authorization tokens are rejected for hosted/default requests
 - invalid mixed or partial hosted/BYOK request shapes are rejected before upstream execution
 - requests exceeding configured limits are rejected
-- unsupported provider/model combinations are rejected before upstream execution
+- unsupported providers are rejected before upstream execution, while explicit BYOK model identifiers may be forwarded after basic validation and rejected upstream if invalid
 - both `/auth` and `/ai` are protected by rate limiting
 
 ## Observability boundaries

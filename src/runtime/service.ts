@@ -275,29 +275,6 @@ export class GatewayService {
       await this.enforceRateLimit(context, request);
       const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
       executionIntent = evaluateExecutionIntent(normalizedRequest, tokenClaims, effectivePolicy);
-    } else if (authorization?.startsWith('Bearer ')) {
-      let identity: { appId?: string; clientId?: string };
-      let tokenClaims: GatewayTokenClaims;
-      try {
-        const verifiedToken = await this.#dependencies.tokenSigner.verify(
-          authorization.slice('Bearer '.length),
-        );
-        tokenClaims = verifiedToken.claims;
-        identity = {
-          appId: verifiedToken.claims.appId,
-          clientId: verifiedToken.claims.clientId,
-        };
-      } catch {
-        throw authenticationError('Bearer token is invalid or expired.', 'token-invalid', {
-          reason: 'token_verification_failed',
-        });
-      }
-
-      context = createRequestContext(request, this.#dependencies.config, identity);
-      setContext(context);
-      await this.enforceRateLimit(context, request);
-      const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
-      executionIntent = evaluateExecutionIntent(normalizedRequest, tokenClaims, effectivePolicy);
     } else {
       context = createRequestContext(request, this.#dependencies.config, {
         appId: 'byok-app',

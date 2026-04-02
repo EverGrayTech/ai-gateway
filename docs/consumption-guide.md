@@ -120,7 +120,7 @@ The gateway:
 
 - validates request shape
 - enforces request constraints
-- validates provider/model selection against gateway policy or provider support rules as applicable
+- the gateway validates provider/model selection against hosted gateway policy or explicit-BYOK provider/format rules as applicable
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
@@ -170,7 +170,7 @@ Requirements:
 - `provider` must be present
 - `model` must be present
 - `X-EG-AI-Provider-Credential` must be present
-- the gateway invokes the exact provider/model using the raw request-scoped credential and does not persist that credential server-side
+- the gateway invokes the exact provider/model using the raw request-scoped credential, does not persist that credential server-side, and for explicit BYOK generally forwards format-valid model identifiers through to the upstream provider
 
 All mixed or partial combinations are rejected as structured validation errors.
 
@@ -203,7 +203,7 @@ When the hosted gateway path is used:
 When an explicit bring-your-own-key request is used:
 
 - clients send the raw provider credential to the gateway in `X-EG-AI-Provider-Credential`
-- the gateway invokes the exact requested supported provider/model using that request-scoped credential
+- the gateway invokes the exact requested supported provider and forwards the supplied format-valid model identifier using that request-scoped credential
 - the gateway does not persist the raw provider credential server-side
 
 ## Failure behavior
