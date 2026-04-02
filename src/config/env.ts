@@ -125,8 +125,8 @@ export const loadGatewayConfig = (input: GatewayEnvInput = process.env): Gateway
     providerCredentials: collectProviderCredentials(input, environment),
     defaults: {
       tokenTtlSeconds: parsePositiveInt(input.AI_GATEWAY_TOKEN_TTL_SECONDS, 300),
-      defaultProvider: input.AI_GATEWAY_DEFAULT_PROVIDER?.trim() || 'openai',
-      defaultModel: input.AI_GATEWAY_DEFAULT_MODEL?.trim() || 'gpt-4o-mini',
+      defaultProvider: input.AI_GATEWAY_DEFAULT_PROVIDER?.trim() || 'openrouter',
+      defaultModel: input.AI_GATEWAY_DEFAULT_MODEL?.trim() || 'openai/gpt-4o-mini',
       maxInputTokens: parsePositiveInt(input.AI_GATEWAY_MAX_INPUT_TOKENS, 4096),
       maxOutputTokens: parsePositiveInt(input.AI_GATEWAY_MAX_OUTPUT_TOKENS, 512),
     },

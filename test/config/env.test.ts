@@ -7,7 +7,8 @@ describe('config env', () => {
 
     expect(config.environment).toBe('development');
     expect(config.signingSecret).toBe('development-signing-secret');
-    expect(config.defaults.defaultProvider).toBe('openai');
+    expect(config.defaults.defaultProvider).toBe('openrouter');
+    expect(config.defaults.defaultModel).toBe('openai/gpt-4o-mini');
     expect(config.defaults.maxInputTokens).toBe(4096);
     expect(config.defaults.maxOutputTokens).toBe(512);
   });

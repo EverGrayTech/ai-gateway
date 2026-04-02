@@ -66,7 +66,7 @@ The hosted gateway currently supports approved models under these provider ident
 - `gemini`
 - `openrouter`
 
-The repository default remains `openai` with model `gpt-4o-mini`. Other providers must be explicitly configured by the operator and remain subject to gateway allowlisting.
+The repository default remains `openrouter` with model `openai/gpt-4o-mini`. Other providers must be explicitly configured by the operator and remain subject to gateway allowlisting.
 
 Non-streaming success response:
 
@@ -124,7 +124,7 @@ The gateway:
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
-The repository hosted default provider is `openai` and the default model is `gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+The repository hosted default provider is `openrouter` and the default model is `openai/gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
 
 ## Default hosted behavior
 

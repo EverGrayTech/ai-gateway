@@ -101,6 +101,8 @@ describe('integration gateway api', () => {
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
         OPENAI_API_KEY: 'openai-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: new OpenAiProviderExecutor({
         credentials: { apiKey: 'openai-key' },
@@ -163,6 +165,8 @@ describe('integration gateway api', () => {
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
         OPENAI_API_KEY: 'openai-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: new StubProviderExecutor(),
     });
@@ -193,6 +197,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
     });
 
@@ -233,6 +239,8 @@ describe('integration gateway api', () => {
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
         OPENAI_API_KEY: 'openai-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: new OpenAiProviderExecutor({
         credentials: { apiKey: 'openai-key' },
@@ -413,6 +421,8 @@ describe('integration gateway api', () => {
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
         OPENAI_API_KEY: 'openai-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: new OpenAiProviderExecutor({
         credentials: { apiKey: 'openai-key' },
@@ -461,15 +471,15 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
-        OPENAI_API_KEY: 'openai-key',
+        OPENROUTER_API_KEY: 'openrouter-key',
       }),
-      providerExecutor: new OpenAiProviderExecutor({
-        credentials: { apiKey: 'openai-key' },
+      providerExecutor: new OpenRouterProviderExecutor({
+        credentials: { apiKey: 'openrouter-key' },
         fetchFn: async () =>
           new Response(
             JSON.stringify({
-              output: [{ content: [{ type: 'output_text', text: 'zero setup hosted output' }] }],
-              usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 },
+              choices: [{ message: { content: 'zero setup hosted output' } }],
+              usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
             }),
             { status: 200, headers: { 'content-type': 'application/json' } },
           ),
@@ -507,8 +517,8 @@ describe('integration gateway api', () => {
       model: string;
       output: string;
     };
-    expect(aiBody.provider).toBe('openai');
-    expect(aiBody.model).toBe('gpt-4o-mini');
+    expect(aiBody.provider).toBe('openrouter');
+    expect(aiBody.model).toBe('openai/gpt-4o-mini');
     expect(aiBody.output).toBe('zero setup hosted output');
   });
 
@@ -706,6 +716,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
     });
 
@@ -784,6 +796,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
     });
 
@@ -870,11 +884,11 @@ describe('integration gateway api', () => {
       details?: Record<string, unknown>;
     };
 
-    expect(body.code).toBe('policy-model-not-allowed');
+    expect(body.code).toBe('policy-provider-not-allowed');
     expect(body.category).toBe('policy');
     expect(body.status).toBe(403);
     expect(body.retryable).toBe(false);
-    expect(body.details).toMatchObject({ provider: 'openai', model: 'gpt-4o' });
+    expect(body.details).toMatchObject({ provider: 'openai' });
   });
 
   it('returns a consistent structured error envelope for auth validation failures', async () => {
@@ -989,6 +1003,8 @@ describe('integration gateway api', () => {
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
         OPENAI_API_KEY: 'openai-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: new OpenAiProviderExecutor({
         credentials: { apiKey: 'openai-key' },
@@ -1056,6 +1072,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: {
         async execute() {
@@ -1110,6 +1128,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: {
         async execute() {
@@ -1164,6 +1184,8 @@ describe('integration gateway api', () => {
       config: loadGatewayConfig({
         NODE_ENV: 'test',
         AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openai',
+        AI_GATEWAY_DEFAULT_MODEL: 'gpt-4o-mini',
       }),
       providerExecutor: {
         async execute() {

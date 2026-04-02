@@ -95,6 +95,14 @@ const cloneHeaders = (headers: Headers): Headers => {
   return cloned;
 };
 
+const getHeaderKeys = (headers: Headers): string[] => {
+  const keys: string[] = [];
+  headers.forEach((_value, key) => {
+    keys.push(key);
+  });
+  return keys.sort();
+};
+
 const nodeHeadersToHeaders = (
   headers: IncomingMessage['headers'],
 ): Headers => {
@@ -128,7 +136,7 @@ const toFetchRequest = async (
     }
     diagnostics.normalizedPath = url.pathname;
     diagnostics.contentType = fetchRequest.headers.get('content-type');
-    diagnostics.headerKeys = [...fetchRequest.headers.keys()].sort();
+    diagnostics.headerKeys = getHeaderKeys(fetchRequest.headers);
 
     const bodyText =
       fetchRequest.method === 'GET' || fetchRequest.method === 'HEAD'
@@ -152,7 +160,7 @@ const toFetchRequest = async (
   diagnostics.originalUrl = nodeRequest.url;
   const headers = nodeHeadersToHeaders(nodeRequest.headers);
   diagnostics.contentType = headers.get('content-type');
-  diagnostics.headerKeys = [...headers.keys()].sort();
+  diagnostics.headerKeys = getHeaderKeys(headers);
   const protocol = headers.get('x-forwarded-proto') || 'https';
   const host = headers.get('x-forwarded-host') || headers.get('host') || 'localhost';
   const url = new URL(nodeRequest.url || '/', `${protocol}://${host}`);

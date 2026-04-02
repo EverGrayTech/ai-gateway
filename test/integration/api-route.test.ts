@@ -46,7 +46,13 @@ const createNodeResponse = (): ServerResponse & {
   headersRecord: Record<string, string>;
 } => {
   const headersRecord: Record<string, string> = {};
-  const response = {
+  const response: {
+    statusCode: number;
+    setHeader: ReturnType<typeof vi.fn>;
+    end: ReturnType<typeof vi.fn>;
+    headersRecord: Record<string, string>;
+    body?: string;
+  } = {
     statusCode: 200,
     setHeader: vi.fn((key: string, value: string) => {
       headersRecord[key] = value;

@@ -24,8 +24,8 @@ describe('policy core', () => {
     const effectivePolicy = resolveEffectivePolicy(policy, 'app');
     const intent = evaluateExecutionIntent(normalized, claims, effectivePolicy);
 
-    expect(intent.provider).toBe('openai');
-    expect(intent.model).toBe('gpt-4o-mini');
+    expect(intent.provider).toBe('openrouter');
+    expect(intent.model).toBe('openai/gpt-4o-mini');
     expect(intent.maxOutputTokens).toBe(512);
   });
 

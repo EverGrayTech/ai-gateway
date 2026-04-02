@@ -16,7 +16,7 @@ describe('auth token', () => {
     expect(verified.claims.clientId).toBe('client');
     expect(verified.claims.constraints.maxInputTokens).toBe(4096);
     expect(verified.claims.constraints.maxOutputTokens).toBe(512);
-    expect(verified.claims.constraints.modelAllowlist).toEqual(['gpt-4o-mini']);
+    expect(verified.claims.constraints.modelAllowlist).toEqual(['openai/gpt-4o-mini']);
   });
 
   it('rejects invalid token signatures distinctly', async () => {
