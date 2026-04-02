@@ -1111,4 +1111,123 @@ describe('integration gateway api', () => {
     expect(new TextDecoder().decode(firstChunk.value)).toContain('data: partial');
     await expect(reader.read()).rejects.toThrow('stream exploded');
   });
+
+  it('normalizes node-like headers and relative urls through the serverless adapter', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const authResponse = await handler({
+      method: 'POST',
+      url: '/auth?via=node',
+      headers: {
+        host: 'gateway.test',
+        'x-forwarded-proto': 'http',
+        'x-forwarded-host': 'forwarded.gateway.test',
+        'content-type': 'application/json',
+        origin: 'http://localhost:5173',
+      },
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(authResponse.status).toBe(200);
+    expect(authResponse.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
+    const authBody = (await authResponse.json()) as { token: string };
+    expect(authBody.token).toBeTruthy();
+  });
+
+  it('supports absolute node-like urls without host headers', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://absolute.example/auth?src=absolute',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { token: string };
+    expect(body.token).toBeTruthy();
+  });
+
+  it('rejects malformed origin patterns and invalid origin/header combinations safely', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'notaurl, https://*.evergraytech.com',
+      }),
+    });
+
+    const invalidOriginResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: '%%%not-an-origin%%%', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(invalidOriginResponse.headers.get('access-control-allow-origin')).toBeNull();
+
+    const wildcardMissResponse = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: 'http://dev.evergraytech.com', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(wildcardMissResponse.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('sets content-length on handled responses even when the body is a structured error', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: {
+        async execute() {
+          return { output: 'unused' };
+        },
+      },
+    });
+
+    const response = await handler({
+      method: 'GET',
+      url: 'https://example.test/unknown-route',
+      headers: new Headers(),
+      text: async () => '',
+    });
+
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(response.headers.get('content-length')).toBeTruthy();
+  });
+
+  it('throws for relative node-like urls without host information', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    await expect(
+      handler({
+        method: 'POST',
+        url: '/auth',
+        headers: {},
+        body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+      }),
+    ).rejects.toThrow('Invalid URL: /auth');
+  });
 });
