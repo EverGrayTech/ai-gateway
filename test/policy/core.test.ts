@@ -113,7 +113,7 @@ describe('policy core', () => {
           allowedModelsByProvider: { openai: ['gpt-4o-mini'] },
         },
       ),
-    ).toThrow(/Model is not permitted by token constraints/);
+    ).toThrow(/Requested model .* is not permitted by this token/);
 
     const unrestrictedClaims = createTokenClaims({ appId: 'app', clientId: 'client' }, config);
 
@@ -147,7 +147,7 @@ describe('policy core', () => {
         claims,
         resolveEffectivePolicy(createGatewayPolicy(config), 'app'),
       ),
-    ).toThrow(/Provider is not allowed/);
+    ).toThrow(/Requested provider .* is not allowed for this hosted route/);
   });
 
   it('keeps policy allowlists aligned with canonical provider model support', () => {
@@ -198,7 +198,7 @@ describe('policy core', () => {
           },
         },
       ),
-    ).toThrow(/Model is not supported by provider/);
+    ).toThrow(/Requested model .* is not supported by provider/);
   });
 
   it('rejects input larger than token or policy limits', () => {

@@ -140,6 +140,6 @@ describe('runtime rate-limit', () => {
         path: '/auth',
         headers: {},
       }),
-    ).rejects.toMatchObject({ code: 'RATE_LIMIT_BACKEND_UNAVAILABLE' });
+    ).rejects.toMatchObject({ code: 'upstream-provider-failed' });
   });
 });

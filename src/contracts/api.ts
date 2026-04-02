@@ -11,17 +11,15 @@ const normalizeIdentifier = (value: string, fieldName: 'appId' | 'clientId'): st
   const normalized = value.trim().toLowerCase();
 
   if (!normalized) {
-    throw new Error(`${fieldName} is required`);
+    throw new Error(`${fieldName}:required`);
   }
 
   if (normalized.length > MAX_IDENTIFIER_LENGTH) {
-    throw new Error(`${fieldName} must be at most ${MAX_IDENTIFIER_LENGTH} characters`);
+    throw new Error(`${fieldName}:too_long`);
   }
 
   if (!IDENTIFIER_PATTERN.test(normalized)) {
-    throw new Error(
-      `${fieldName} must contain only lowercase letters, numbers, hyphens, underscores, or periods`,
-    );
+    throw new Error(`${fieldName}:invalid_format`);
   }
 
   return normalized;
@@ -59,14 +57,12 @@ export interface AiSuccessResponse {
 }
 
 export interface NormalizedErrorResponse {
-  error: {
-    code: string;
-    category: 'validation' | 'authentication' | 'policy' | 'rate_limit' | 'upstream' | 'internal';
-    message: string;
-    requestId: string;
-    actionable?: {
-      summary: string;
-      details?: readonly string[];
-    };
-  };
+  ok: false;
+  code: string;
+  category: 'validation' | 'authentication' | 'policy' | 'rate-limit' | 'provider' | 'internal';
+  message: string;
+  status: number;
+  retryable: boolean;
+  requestId: string;
+  details?: Readonly<Record<string, unknown>>;
 }

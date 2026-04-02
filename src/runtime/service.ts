@@ -47,13 +47,13 @@ const jsonResponse = (status: number, body: unknown): GatewayHttpResponse => ({
 
 const parseJsonBody = <T>(request: GatewayHttpRequest): T => {
   if (!request.body) {
-    throw validationError('Request body is required', 'MISSING_REQUEST_BODY');
+    throw validationError('Request body is required.', 'request-invalid', { reason: 'missing_body' });
   }
 
   try {
     return JSON.parse(request.body) as T;
   } catch (error) {
-    throw validationError('Request body must be valid JSON', 'INVALID_JSON_BODY');
+    throw validationError('Request body must be valid JSON.', 'request-invalid', { reason: 'invalid_json' });
   }
 };
 
@@ -113,7 +113,7 @@ export class GatewayService {
           path: request.path,
           method: request.method,
           status: normalized.status,
-          error: normalized.body.error.code,
+          error: normalized.body.code,
         }),
       });
 
@@ -123,7 +123,7 @@ export class GatewayService {
         method: request.method,
         durationMs: timer.stop(),
         outcome: 'error',
-        errorCategory: normalized.body.error.category,
+        errorCategory: normalized.body.category,
       });
 
       return {
@@ -147,7 +147,8 @@ export class GatewayService {
 
     throw validationError(
       `Unsupported route: ${request.method} ${request.path}`,
-      'ROUTE_NOT_FOUND',
+      'request-invalid',
+      { reason: 'route_not_found', method: request.method, path: request.path },
     );
   }
 
@@ -155,7 +156,31 @@ export class GatewayService {
     request: GatewayHttpRequest,
     setContext: (context: RequestContext) => void,
   ): Promise<GatewayHandlerResult> {
-    const body = normalizeAuthRequest(parseJsonBody<AuthRequestBody>(request));
+    const parsedBody = parseJsonBody<AuthRequestBody>(request);
+    let body: AuthRequestBody;
+    try {
+      body = normalizeAuthRequest(parsedBody);
+    } catch (error) {
+      if (error instanceof Error) {
+        const [fieldName, reason] = error.message.split(':');
+        const code =
+          fieldName === 'appId'
+            ? reason === 'required'
+              ? 'auth-missing-app-id'
+              : 'auth-invalid-app-id'
+            : reason === 'required'
+              ? 'auth-missing-client-id'
+              : 'auth-invalid-client-id';
+        const message =
+          reason === 'required'
+            ? `${fieldName} is required.`
+            : `${fieldName} is invalid.`;
+
+        throw validationError(message, code, { field: fieldName, reason });
+      }
+
+      throw error;
+    }
     const context = createRequestContext(request, this.#dependencies.config, body);
     setContext(context);
 
@@ -197,7 +222,9 @@ export class GatewayService {
     )?.[1];
     const authorization = Array.isArray(authHeader) ? authHeader[0] : authHeader;
     if (!authorization?.startsWith('Bearer ')) {
-      throw authenticationError('Bearer token is required', 'MISSING_BEARER_TOKEN');
+      throw authenticationError('Bearer token is required.', 'token-missing', {
+        reason: 'missing_bearer_token',
+      });
     }
 
     let identity: { appId?: string; clientId?: string };
@@ -212,7 +239,9 @@ export class GatewayService {
         clientId: verifiedToken.claims.clientId,
       };
     } catch {
-      throw authenticationError('Bearer token is invalid', 'INVALID_BEARER_TOKEN');
+      throw authenticationError('Bearer token is invalid or expired.', 'token-invalid', {
+        reason: 'token_verification_failed',
+      });
     }
 
     const context = createRequestContext(request, this.#dependencies.config, identity);

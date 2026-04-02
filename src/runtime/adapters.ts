@@ -173,8 +173,9 @@ export class ExternalRateLimiter implements RateLimiterPort {
 
       throw upstreamError(
         `Rate limiting backend is unavailable (${detail})`,
-        'RATE_LIMIT_BACKEND_UNAVAILABLE',
+        'upstream-provider-failed',
         error,
+        { reason: 'rate_limit_backend_unavailable' },
       );
     }
   }

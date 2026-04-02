@@ -209,9 +209,21 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const body = JSON.parse(result.response.body) as { error: { code: string; message: string } };
-    expect(result.response.status).toBe(500);
-    expect(body.error.code).toBe('INTERNAL_ERROR');
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
+    expect(result.response.status).toBe(400);
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe('auth-invalid-app-id');
+    expect(body.category).toBe('validation');
+    expect(body.status).toBe(400);
+    expect(body.retryable).toBe(false);
+    expect(body.details).toMatchObject({ field: 'appId', reason: 'invalid_format' });
   });
 
   it('supports streaming-capable responses through the serverless adapter', async () => {
@@ -709,9 +721,19 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
     expect(result.response.status).toBe(401);
-    expect(body.error.code).toBe('MISSING_BEARER_TOKEN');
+    expect(body.code).toBe('token-missing');
+    expect(body.category).toBe('authentication');
+    expect(body.status).toBe(401);
+    expect(body.retryable).toBe(false);
   });
 
   it('rejects expired bearer tokens before provider execution', async () => {
@@ -742,9 +764,19 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
     expect(result.response.status).toBe(401);
-    expect(body.error.code).toBe('INVALID_BEARER_TOKEN');
+    expect(body.code).toBe('token-invalid');
+    expect(body.category).toBe('authentication');
+    expect(body.status).toBe(401);
+    expect(body.retryable).toBe(false);
   });
 
   it('rejects malformed ai requests through the public api surface', async () => {
@@ -781,9 +813,18 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const body = JSON.parse(result.response.body) as { error: { code: string } };
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
     expect(result.response.status).toBe(400);
-    expect(body.error.code).toBe('INVALID_JSON_BODY');
+    expect(body.code).toBe('request-invalid');
+    expect(body.category).toBe('validation');
+    expect(body.details).toMatchObject({ reason: 'invalid_json' });
   });
 
   it('rejects unsupported models through the integrated api surface', async () => {
@@ -820,9 +861,59 @@ describe('integration gateway api', () => {
       throw new Error('expected standard response');
     }
 
-    const body = JSON.parse(result.response.body) as { error: { code: string } };
-    expect(result.response.status).toBe(403);
-    expect(body.error.code).toBe('UNSUPPORTED_MODEL');
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
+
+    expect(body.code).toBe('policy-model-not-allowed');
+    expect(body.category).toBe('policy');
+    expect(body.status).toBe(403);
+    expect(body.retryable).toBe(false);
+    expect(body.details).toMatchObject({ provider: 'openai', model: 'gpt-4o' });
+  });
+
+  it('returns a consistent structured error envelope for auth validation failures', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app' }),
+    });
+
+    if (result.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(result.response.body) as {
+      ok: false;
+      code: string;
+      message: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
+
+    expect(result.response.status).toBe(400);
+    expect(body).toMatchObject({
+      ok: false,
+      code: 'auth-invalid-client-id',
+      category: 'validation',
+      status: 400,
+      retryable: false,
+    });
   });
 
   it('does not invoke provider execution when auth fails', async () => {

@@ -49,7 +49,10 @@ export const resolveEffectivePolicy = (
 export const normalizeAiRequest = (body: AiRequestBody): NormalizedAiRequest => {
   const input = body.input?.trim();
   if (!input) {
-    throw validationError('input is required', 'MISSING_AI_INPUT');
+    throw validationError('input is required.', 'request-invalid', {
+      field: 'input',
+      reason: 'missing_input',
+    });
   }
 
   return {
@@ -72,22 +75,53 @@ export const evaluateExecutionIntent = (
   const model = request.model || effectivePolicy.defaultModel;
 
   if (!effectivePolicy.allowedProviders.includes(provider)) {
-    throw policyError('Provider is not allowed', 'UNSUPPORTED_PROVIDER');
+    throw policyError(
+      `Requested provider "${provider}" is not allowed for this hosted route.`,
+      'policy-provider-not-allowed',
+      {
+        provider,
+        reason: 'provider_not_allowlisted',
+      },
+    );
   }
 
   const allowedModels = effectivePolicy.allowedModelsByProvider[provider] ?? [];
   if (!allowedModels.includes(model)) {
-    throw policyError('Model is not allowed', 'UNSUPPORTED_MODEL');
+    throw policyError(
+      `Requested model "${model}" is not allowed for this hosted route.`,
+      'policy-model-not-allowed',
+      {
+        provider,
+        model,
+        reason: 'model_not_allowlisted',
+      },
+    );
   }
 
   const supportedModels = getSupportedModelsForProvider(provider);
   if (!supportedModels.includes(model)) {
-    throw policyError('Model is not supported by provider', 'UNSUPPORTED_MODEL');
+    throw policyError(
+      `Requested model "${model}" is not supported by provider "${provider}".`,
+      'policy-model-not-allowed',
+      {
+        provider,
+        model,
+        reason: 'model_not_supported_by_provider',
+      },
+    );
   }
 
   const tokenAllowlist = tokenClaims.constraints.modelAllowlist;
   if (tokenAllowlist && !tokenAllowlist.includes(model)) {
-    throw policyError('Model is not permitted by token constraints', 'TOKEN_MODEL_RESTRICTED');
+    throw policyError(
+      `Requested model "${model}" is not permitted by this token.`,
+      'policy-model-not-allowed',
+      {
+        provider,
+        model,
+        reason: 'model_not_permitted_by_token',
+      },
+    );
   }
 
   const requestedInputTokens = countApproximateTokens(request.input);
@@ -97,7 +131,11 @@ export const evaluateExecutionIntent = (
   );
 
   if (requestedInputTokens > effectiveInputLimit) {
-    throw policyError('Input exceeds allowed size', 'INPUT_TOO_LARGE');
+    throw validationError('Input exceeds allowed size for this hosted route.', 'request-invalid', {
+      reason: 'input_too_large',
+      limit: effectiveInputLimit,
+      requested: requestedInputTokens,
+    });
   }
 
   const requestedOutputTokens = request.maxOutputTokens ?? effectivePolicy.maxOutputTokens;

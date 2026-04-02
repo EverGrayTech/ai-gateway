@@ -27,8 +27,9 @@ describe('errors normalize', () => {
     );
 
     expect(normalized.status).toBe(400);
-    expect(normalized.body.error.code).toBe('BAD_PAYLOAD');
-    expect(normalized.body.error.requestId).toBe(context.runtime.requestId);
+    expect(normalized.body.ok).toBe(false);
+    expect(normalized.body.code).toBe('BAD_PAYLOAD');
+    expect(normalized.body.requestId).toBe(context.runtime.requestId);
   });
 
   it('converts unknown errors into internal gateway errors and hides unsafe messages', () => {
@@ -48,11 +49,11 @@ describe('errors normalize', () => {
     const normalized = normalizeErrorResponse(cause, context);
 
     expect(gatewayError).toBeInstanceOf(GatewayError);
-    expect(gatewayError.code).toBe('INTERNAL_ERROR');
+    expect(gatewayError.code).toBe('internal-error');
     expect(gatewayError.cause).toBe(cause);
     expect(normalized.status).toBe(500);
-    expect(normalized.body.error.code).toBe('INTERNAL_ERROR');
-    expect(normalized.body.error.message).toBe('Internal server error');
+    expect(normalized.body.code).toBe('internal-error');
+    expect(normalized.body.message).toBe('Internal server error');
   });
 
   it('returns gateway errors unchanged when normalizing unknown inputs', () => {
