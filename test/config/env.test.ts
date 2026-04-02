@@ -69,6 +69,7 @@ describe('config env', () => {
       rateLimiterToken: undefined,
       telemetry: 'otel',
       providerRegistry: 'registry',
+      allowedOrigins: ['http://localhost:5173'],
     });
   });
 
@@ -135,6 +136,7 @@ describe('config env', () => {
       rateLimiterToken: undefined,
       telemetry: undefined,
       providerRegistry: undefined,
+      allowedOrigins: ['http://localhost:5173'],
     });
   });
 
@@ -167,6 +169,19 @@ describe('config env', () => {
       rateLimiterToken: 'upstash-token',
       telemetry: undefined,
       providerRegistry: undefined,
+      allowedOrigins: ['http://localhost:5173'],
     });
+  });
+
+  it('loads configured allowed origins and trims comma-separated values', () => {
+    const config = loadGatewayConfig({
+      NODE_ENV: 'test',
+      AI_GATEWAY_ALLOWED_ORIGINS: ' http://localhost:5173 , https://*.evergraytech.com ',
+    });
+
+    expect(config.adapters.allowedOrigins).toEqual([
+      'http://localhost:5173',
+      'https://*.evergraytech.com',
+    ]);
   });
 });

@@ -34,6 +34,19 @@ const parsePositiveInt = (value: string | undefined, fallback: number): number =
   return parsed;
 };
 
+const parseAllowedOrigins = (value: string | undefined): readonly string[] => {
+  if (!value?.trim()) {
+    return ['http://localhost:5173'];
+  }
+
+  const origins = value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  return origins.length > 0 ? origins : ['http://localhost:5173'];
+};
+
 const requireSigningSecret = (
   value: string | undefined,
   environment: RuntimeEnvironment,
@@ -123,6 +136,7 @@ export const loadGatewayConfig = (input: GatewayEnvInput = process.env): Gateway
       rateLimiterToken: inferredRateLimiterToken,
       telemetry: input.AI_GATEWAY_TELEMETRY?.trim() || undefined,
       providerRegistry: input.AI_GATEWAY_PROVIDER_REGISTRY?.trim() || undefined,
+      allowedOrigins: parseAllowedOrigins(input.AI_GATEWAY_ALLOWED_ORIGINS),
     },
   };
 };

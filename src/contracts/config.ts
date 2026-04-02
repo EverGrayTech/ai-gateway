@@ -19,6 +19,7 @@ export interface AdapterBindings {
   rateLimiterToken?: string;
   telemetry?: string;
   providerRegistry?: string;
+  allowedOrigins?: readonly string[];
 }
 
 export interface GatewayConfig {
@@ -51,4 +52,5 @@ export interface GatewayEnvInput {
   UPSTASH_REDIS_REST_TOKEN?: string;
   AI_GATEWAY_TELEMETRY?: string;
   AI_GATEWAY_PROVIDER_REGISTRY?: string;
+  AI_GATEWAY_ALLOWED_ORIGINS?: string;
 }

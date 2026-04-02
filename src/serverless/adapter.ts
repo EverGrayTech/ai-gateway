@@ -10,6 +10,9 @@ export interface FetchLikeRequest {
 
 type NodeLikeHeaders = Record<string, string | readonly string[] | undefined>;
 
+const ACCESS_CONTROL_ALLOW_METHODS = 'POST, OPTIONS';
+const ACCESS_CONTROL_ALLOW_HEADERS = 'content-type, authorization';
+
 interface NodeLikeRequest {
   method?: string;
   url?: string;
@@ -46,7 +49,8 @@ const toHeaderAccessor = (headers: Headers | NodeLikeHeaders): HeaderAccessor =>
           continue;
         }
 
-        callback(Array.isArray(value) ? value.join(', ') : value, key);
+        const normalizedValue = Array.isArray(value) ? value.join(', ') : String(value);
+        callback(normalizedValue, key);
       }
     },
   };
@@ -61,6 +65,54 @@ const headersToObject = (headers: HeaderAccessor): Record<string, string> => {
     result[key] = value;
   });
   return result;
+};
+
+const parseOrigin = (value: string): URL | null => {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+};
+
+const isAllowedOrigin = (origin: string, allowedOrigins: readonly string[]): boolean => {
+  const parsedOrigin = parseOrigin(origin);
+  if (!parsedOrigin) {
+    return false;
+  }
+
+  return allowedOrigins.some((pattern) => {
+    const trimmedPattern = pattern.trim();
+    if (!trimmedPattern) {
+      return false;
+    }
+
+    if (!trimmedPattern.includes('*')) {
+      return origin === trimmedPattern;
+    }
+
+    const parsedPattern = parseOrigin(trimmedPattern.replace('*.', 'placeholder.'));
+    if (!parsedPattern) {
+      return false;
+    }
+
+    if (parsedPattern.protocol !== parsedOrigin.protocol) {
+      return false;
+    }
+
+    const patternHost = trimmedPattern.replace(`${parsedPattern.protocol}//*.`, '');
+    return parsedOrigin.hostname.endsWith(`.${patternHost}`);
+  });
+};
+
+const applyCorsHeaders = (headers: Headers, origin: string | null, allowedOrigins: readonly string[]): void => {
+  headers.set('access-control-allow-methods', ACCESS_CONTROL_ALLOW_METHODS);
+  headers.set('access-control-allow-headers', ACCESS_CONTROL_ALLOW_HEADERS);
+  headers.set('vary', 'Origin');
+
+  if (origin && isAllowedOrigin(origin, allowedOrigins)) {
+    headers.set('access-control-allow-origin', origin);
+  }
 };
 
 const resolveRequestUrl = (requestUrl: string, headers: HeaderAccessor): URL => {
@@ -123,7 +175,11 @@ const eventStreamFromChunks = (
   });
 };
 
-export const toFetchResponse = (result: GatewayHandlerResult): Response => {
+export const toFetchResponse = (
+  result: GatewayHandlerResult,
+  origin: string | null,
+  allowedOrigins: readonly string[],
+): Response => {
   if (result.kind === 'response') {
     const headers = new Headers(result.response.headers);
     if (!headers.has('content-type')) {
@@ -134,24 +190,38 @@ export const toFetchResponse = (result: GatewayHandlerResult): Response => {
       headers.set('content-length', new TextEncoder().encode(result.response.body).byteLength.toString());
     }
 
+    applyCorsHeaders(headers, origin, allowedOrigins);
+
     return new Response(result.response.body, {
       status: result.response.status,
       headers,
     });
   }
 
+  const headers = new Headers(result.response.headers);
+  applyCorsHeaders(headers, origin, allowedOrigins);
+
   return new Response(eventStreamFromChunks(result.response.stream), {
     status: result.response.status,
-    headers: result.response.headers,
+    headers,
   });
 };
 
 export const createServerlessHandler = (options: CreateGatewayServiceOptions = {}) => {
   const service = createGatewayService(options);
+  const allowedOrigins = options.config?.adapters.allowedOrigins ?? ['http://localhost:5173'];
 
   return async (request: FetchLikeRequest | NodeLikeRequest): Promise<Response> => {
+    const headers = toHeaderAccessor(request.headers);
+    const origin = headers.get('origin');
+    if ((request.method || 'GET').toUpperCase() === 'OPTIONS') {
+      const responseHeaders = new Headers();
+      applyCorsHeaders(responseHeaders, origin, allowedOrigins);
+      return new Response(null, { status: 200, headers: responseHeaders });
+    }
+
     const normalizedRequest = await toGatewayHttpRequest(request);
     const result = await service.handle(normalizedRequest);
-    return toFetchResponse(result);
+    return toFetchResponse(result, origin, allowedOrigins);
   };
 };

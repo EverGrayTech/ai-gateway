@@ -1,6 +1,6 @@
 {
   "name": "@evergraytech/ai-gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Centralized backend gateway for signed, policy-enforced hosted AI execution across EverGray Tech applications",
   "license": "Apache-2.0",
   "type": "module",

@@ -265,6 +265,136 @@ describe('integration gateway api', () => {
     expect(streamResponse.headers.get('content-type')).toContain('text/event-stream');
   });
 
+  it('applies default cors headers for allowed localhost origins through the serverless adapter', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: 'http://localhost:5173', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
+    expect(response.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS');
+    expect(response.headers.get('access-control-allow-headers')).toBe('content-type, authorization');
+    expect(response.headers.get('vary')).toBe('Origin');
+  });
+
+  it('reflects configured exact origins in cors responses', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'https://app.evergraytech.com',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: 'https://app.evergraytech.com', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://app.evergraytech.com');
+  });
+
+  it('supports wildcard subdomain cors matches without returning wildcard headers', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'https://*.evergraytech.com',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: 'https://dev.evergraytech.com', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://dev.evergraytech.com');
+  });
+
+  it('omits access-control-allow-origin for disallowed origins', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'https://*.evergraytech.com',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://example.test/auth',
+      headers: new Headers({ origin: 'https://example.com', 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    expect(response.headers.get('vary')).toBe('Origin');
+  });
+
+  it('handles options preflight without invoking gateway logic', async () => {
+    let called = false;
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'https://*.evergraytech.com',
+      }),
+      providerExecutor: {
+        async execute() {
+          called = true;
+          return { output: 'should-not-run' };
+        },
+      },
+    });
+
+    const response = await handler({
+      method: 'OPTIONS',
+      url: 'https://example.test/ai',
+      headers: new Headers({ origin: 'https://dev.evergraytech.com' }),
+      text: async () => '',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://dev.evergraytech.com');
+    expect(called).toBe(false);
+  });
+
+  it('applies cors headers to handled error responses', async () => {
+    const handler = createServerlessHandler({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        AI_GATEWAY_ALLOWED_ORIGINS: 'https://app.evergraytech.com',
+      }),
+    });
+
+    const response = await handler({
+      method: 'POST',
+      url: 'https://example.test/ai',
+      headers: new Headers({ origin: 'https://app.evergraytech.com' }),
+      text: async () => JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://app.evergraytech.com');
+    expect(response.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS');
+    expect(response.headers.get('access-control-allow-headers')).toBe('content-type, authorization');
+    expect(response.headers.get('vary')).toBe('Origin');
+  });
+
   it('supports default-model execution when ai model is omitted', async () => {
     const service = createGatewayService({
       config: loadGatewayConfig({
