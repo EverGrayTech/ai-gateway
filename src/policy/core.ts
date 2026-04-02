@@ -71,6 +71,17 @@ export const evaluateExecutionIntent = (
   tokenClaims: GatewayTokenClaims,
   effectivePolicy: EffectiveGatewayPolicy,
 ): ProviderExecutionIntent => {
+  if (!request.provider && request.model) {
+    throw validationError(
+      'model cannot be specified when provider is omitted for the hosted default route.',
+      'request-invalid',
+      {
+        field: 'model',
+        reason: 'model_requires_provider',
+      },
+    );
+  }
+
   const provider = request.provider || effectivePolicy.defaultProvider;
   const model = request.model || effectivePolicy.defaultModel;
 

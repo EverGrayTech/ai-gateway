@@ -17,6 +17,7 @@ Align zero-setup hosted execution with the currently configured provider surface
 - Do not change `/auth` or `/ai` request/response contracts
 - Keep explicit provider/model requests behaving as they do today
 - Ensure the default provider and default model are compatible with configured OpenRouter credentials and canonical provider support
+- In hosted default mode, do not allow callers to supply `model` when `provider` is omitted
 
 ## Required Change
 
@@ -27,6 +28,9 @@ Align zero-setup hosted execution with the currently configured provider surface
   - `defaultProvider = "openrouter"`
   - a valid supported OpenRouter default model suitable for low-cost hosted usage
 - Confirm that omitted-provider hosted requests now resolve through OpenRouter rather than failing due to OpenAI being the default without credentials
+- Enforce a bounded hosted-default rule:
+  - if both `provider` and `model` are omitted, apply the configured hosted defaults
+  - if `model` is supplied while `provider` is omitted, reject the request
 
 ## Implementation Phases
 
@@ -41,5 +45,8 @@ Align zero-setup hosted execution with the currently configured provider surface
 - [x] Zero-setup integration coverage now exercises the default hosted path through OpenRouter credentials rather than OpenAI credentials
 - [x] Consumption docs now describe OpenRouter as the repository hosted default provider
 - [x] Remaining explicit OpenAI-path tests were preserved by pinning those scenarios to OpenAI-specific defaults where they intentionally validate OpenAI behavior
+- [x] Hosted default mode is now cost-bounded: callers cannot supply `model` unless they also explicitly supply `provider`
+- [x] Requests that provide `model` without `provider` now fail validation with `request-invalid` and reason `model_requires_provider`
+- [x] Integration coverage now verifies both the allowed zero-setup path (`provider` + `model` both omitted) and the rejected mixed-mode path (`model` omitted? no / `provider` omitted? yes)
 - [x] `pnpm typecheck` passes after updating the hosted defaults and related tests
 - [x] `pnpm test` passes with coverage thresholds satisfied

@@ -57,13 +57,13 @@ Request body:
 }
 ```
 
-`provider` may be omitted when client code already assumes the hosted default path, and `model` may be omitted to use the hosted default model.
+`provider` may be omitted when client code already assumes the hosted default path. In that hosted-default case, `model` must also be omitted so callers cannot select a more expensive hosted model at gateway expense.
 
 The hosted gateway currently supports approved models under these provider identifiers:
 
-- `openai`
 - `anthropic`
 - `gemini`
+- `openai`
 - `openrouter`
 
 The repository default remains `openrouter` with model `openai/gpt-4o-mini`. Other providers must be explicitly configured by the operator and remain subject to gateway allowlisting.
@@ -124,13 +124,14 @@ The gateway:
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
-The repository hosted default provider is `openrouter` and the default model is `openai/gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+The repository hosted default provider is `openrouter` and the default model is `openai/gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. If a client sends `model` while omitting `provider`, the request is rejected. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
 
 ## Default hosted behavior
 
 The default hosted path is designed to work with zero provider-key setup from the end user:
 
 - client integrations may omit `provider` and `model` and rely on the hosted gateway defaults
+- client integrations must not send `model` without `provider`; mixed-mode requests are rejected
 - the gateway applies its configured default provider/model plus its configured request-size and output-token bounds
 - hosted execution remains constrained by the same signed-token, policy, identifier-normalization, and rate-limiting behavior used by all hosted requests
 

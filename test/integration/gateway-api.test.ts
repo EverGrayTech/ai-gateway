@@ -522,6 +522,60 @@ describe('integration gateway api', () => {
     expect(aiBody.output).toBe('zero setup hosted output');
   });
 
+  it('rejects model selection when provider is omitted in hosted default mode', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'openrouter-key',
+      }),
+      providerExecutor: new OpenRouterProviderExecutor({
+        credentials: { apiKey: 'openrouter-key' },
+      }),
+    });
+
+    const authResult = await service.handle({
+      method: 'POST',
+      path: '/auth',
+      headers: {},
+      body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+    });
+
+    if (authResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const authBody = JSON.parse(authResult.response.body) as { token: string };
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {
+        authorization: `Bearer ${authBody.token}`,
+      },
+      body: JSON.stringify({ model: 'openai/gpt-4o', input: 'hello default hosted path' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected standard response');
+    }
+
+    const body = JSON.parse(aiResult.response.body) as {
+      ok: false;
+      code: string;
+      category: string;
+      status: number;
+      retryable: boolean;
+      details?: Record<string, unknown>;
+    };
+
+    expect(aiResult.response.status).toBe(400);
+    expect(body.code).toBe('request-invalid');
+    expect(body.category).toBe('validation');
+    expect(body.retryable).toBe(false);
+    expect(body.details).toMatchObject({ field: 'model', reason: 'model_requires_provider' });
+  });
+
   it('applies bounded hosted defaults for token constraints in zero-setup mode', async () => {
     const config = loadGatewayConfig({
       NODE_ENV: 'test',
