@@ -265,6 +265,7 @@ export class OpenAiProviderExecutor implements ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
+    credentialsOverride?: ProviderCredentialSet;
   }): Promise<{
     output: string;
     usage?: {
@@ -285,12 +286,13 @@ export class OpenAiProviderExecutor implements ProviderExecutorPort {
       throw upstreamError('Provider adapter does not support requested model', 'MODEL_MISMATCH');
     }
 
-    const apiKey = this.#credentials?.apiKey?.trim();
+    const resolvedCredentials = input.credentialsOverride ?? this.#credentials;
+    const apiKey = resolvedCredentials?.apiKey?.trim();
     if (!apiKey) {
       throw upstreamError('OpenAI provider is not configured', 'OPENAI_MISSING_CREDENTIALS');
     }
 
-    const response = await this.#fetchFn(`${resolveBaseUrl(this.#credentials)}/v1/responses`, {
+    const response = await this.#fetchFn(`${resolveBaseUrl(resolvedCredentials)}/v1/responses`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

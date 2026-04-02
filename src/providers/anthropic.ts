@@ -248,6 +248,7 @@ export class AnthropicProviderExecutor implements ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
+    credentialsOverride?: ProviderCredentialSet;
   }): Promise<{
     output: string;
     usage?: {
@@ -268,12 +269,13 @@ export class AnthropicProviderExecutor implements ProviderExecutorPort {
       throw upstreamError('Provider adapter does not support requested model', 'MODEL_MISMATCH');
     }
 
-    const apiKey = this.#credentials?.apiKey?.trim();
+    const resolvedCredentials = input.credentialsOverride ?? this.#credentials;
+    const apiKey = resolvedCredentials?.apiKey?.trim();
     if (!apiKey) {
       throw upstreamError('Anthropic provider is not configured', 'ANTHROPIC_MISSING_CREDENTIALS');
     }
 
-    const response = await this.#fetchFn(`${resolveBaseUrl(this.#credentials)}/v1/messages`, {
+    const response = await this.#fetchFn(`${resolveBaseUrl(resolvedCredentials)}/v1/messages`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

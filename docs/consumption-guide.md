@@ -114,24 +114,72 @@ Hosted bearer tokens are required for `/ai`. Missing, malformed, invalid, or exp
 
 ## AI execution flow
 
-`/ai` accepts a signed token plus a normalized request payload.
+`/ai` accepts a normalized request payload and supports two request shapes.
 
 The gateway:
 
-- validates the token
+- validates request shape
 - enforces request constraints
-- validates provider/model selection against gateway policy
+- validates provider/model selection against gateway policy or provider support rules as applicable
 - executes the approved request against an upstream provider
 - returns a standard or streaming response
 
-The repository hosted default provider is `openrouter` and the default model is `openai/gpt-4o-mini`. If a client omits `provider` and `model`, the gateway applies the configured hosted defaults for the active hosted path. If a client sends `model` while omitting `provider`, the request is rejected. The intended zero-setup experience is this bounded hosted default path rather than a separate mode-specific API surface. If a client requests a provider or model outside the gateway allowlist, the request is rejected rather than coerced.
+The repository hosted default provider is `openrouter` and the default model is `openai/gpt-4o-mini`.
+
+### Valid `/ai` request shapes
+
+#### Hosted/default request
+Headers:
+
+- `Authorization: Bearer <signed-token>`
+
+Request body:
+
+```json
+{
+  "input": "hello world",
+  "stream": false
+}
+```
+
+Requirements:
+
+- `provider` must be omitted
+- `model` must be omitted
+- `X-EG-AI-Provider-Credential` must be omitted
+- the gateway applies the configured hosted default provider/model and hosted policy constraints
+
+#### Explicit BYOK request
+Headers:
+
+- `X-EG-AI-Provider-Credential: <raw-provider-credential>`
+
+Request body:
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "input": "hello world",
+  "stream": false
+}
+```
+
+Requirements:
+
+- `provider` must be present
+- `model` must be present
+- `X-EG-AI-Provider-Credential` must be present
+- the gateway invokes the exact provider/model using the raw request-scoped credential and does not persist that credential server-side
+
+All mixed or partial combinations are rejected as structured validation errors.
 
 ## Default hosted behavior
 
 The default hosted path is designed to work with zero provider-key setup from the end user:
 
-- client integrations may omit `provider` and `model` and rely on the hosted gateway defaults
-- client integrations must not send `model` without `provider`; mixed-mode requests are rejected
+- client integrations may omit `provider` and `model` and rely on the hosted gateway defaults only when the BYOK credential header is also absent
+- client integrations must not send partial hosted/BYOK combinations; mixed-shape requests are rejected
 - the gateway applies its configured default provider/model plus its configured request-size and output-token bounds
 - hosted execution remains constrained by the same signed-token, policy, identifier-normalization, and rate-limiting behavior used by all hosted requests
 
@@ -141,30 +189,31 @@ For integrations using `@evergraytech/ai-config`:
 
 - hosted execution should be the automatic default when no user provider key is configured
 - bring-your-own-key execution should be selected explicitly when the user supplies their own provider credentials
-- hosted and BYOK flows should remain separate; hosted requests use gateway-issued tokens, while BYOK requests bypass the hosted `/auth` and `/ai` flow entirely
+- hosted and BYOK flows use the same gateway-mediated `/ai` surface and are distinguished solely by request shape
 
-## Hosted path and direct-provider path
+## Hosted path and explicit BYOK path
 
 When the hosted gateway path is used:
 
 - clients do not send provider API keys to the browser
-- clients do not call upstream providers directly
+- clients do not call upstream providers directly for hosted execution
 - gateway policy determines what hosted models and providers may be used
 - aggregator-backed providers such as `openrouter` remain governed by the same explicit hosted allowlists rather than exposing arbitrary upstream routing
 
-When a direct-provider bring-your-own-key path is used:
+When an explicit bring-your-own-key request is used:
 
-- clients integrate with the provider directly
-- gateway-issued hosted tokens are not part of that flow
-- gateway enforcement does not execute the request
+- clients send the raw provider credential to the gateway in `X-EG-AI-Provider-Credential`
+- the gateway invokes the exact requested supported provider/model using that request-scoped credential
+- the gateway does not persist the raw provider credential server-side
 
 ## Failure behavior
 
 Clients should expect hard rejections when requests are invalid or disallowed. Typical rejection categories include:
 
-- missing or invalid token
+- missing or invalid hosted token for hosted/default requests
 - expired token
 - malformed request payload
+- invalid hosted/BYOK request shape
 - unsupported provider or model selection
 - exceeded request limits
 - rate-limit rejection
@@ -191,6 +240,7 @@ Some serverless platforms buffer or restrict streaming behavior. The gateway con
 ## Security expectations
 
 - Never embed hosted provider credentials in client applications
+- Treat `X-EG-AI-Provider-Credential` as sensitive request data and avoid logging or persisting it in client or server observability sinks
 - Treat all gateway responses as network data subject to validation in the client integration layer
 - Avoid storing sensitive request payloads or tokens in insecure logs or analytics sinks
 
@@ -204,6 +254,6 @@ Hosted path responsibilities:
 
 BYOK responsibilities:
 
-- client applications integrate with providers directly
-- client-owned provider keys never pass through this gateway
-- hosted `/auth` and `/ai` contracts do not apply to the direct-provider bypass path
+- client applications supply `provider`, `model`, and `X-EG-AI-Provider-Credential` to the gateway
+- the gateway forwards the raw provider credential per request only and does not persist it
+- the gateway executes the request against the selected supported provider through the same `/ai` surface

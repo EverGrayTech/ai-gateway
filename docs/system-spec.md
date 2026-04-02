@@ -2,11 +2,11 @@
 
 ## Purpose
 
-`@evergraytech/ai-gateway` is a centralized backend service that authorizes and executes hosted AI requests on behalf of EverGray Tech applications. It protects provider credentials, enforces server-side policy, and exposes a consistent interface for downstream consumers.
+`@evergraytech/ai-gateway` is a centralized backend service that authorizes and executes AI requests on behalf of EverGray Tech applications. It protects hosted provider credentials, enforces server-side policy, supports request-scoped BYOK credentials, and exposes a consistent interface for downstream consumers.
 
 ## Core responsibilities
 
-- issue signed tokens for hosted execution requests
+- issue signed tokens for hosted default execution requests
 - validate request identity context through `appId` and `clientId`
 - enforce rate limits and request-level safety constraints
 - restrict hosted execution to approved providers and models
@@ -24,26 +24,34 @@ The current hosted provider surface includes OpenAI, Anthropic, Gemini, and Open
 
 ## Trust and security boundaries
 
-- provider API keys remain server-side only
+- hosted provider API keys remain server-side only
+- request-scoped BYOK provider credentials may be forwarded per request but must never be persisted or emitted to logs, telemetry, or error surfaces
 - clients must not be treated as trusted enforcement actors
 - signed tokens authorize hosted execution and encode server-enforced constraints
 - `appId` identifies the consuming application context but is not a secret credential by itself
 - `clientId` provides anonymous-but-stable client identity context for abuse prevention and observability
 
-## Hosted execution contract
+## AI execution contract
 
-The hosted path follows this shape:
+The gateway supports two `/ai` request shapes:
 
-1. client calls `/auth`
-2. gateway returns a short-lived signed token
-3. client calls `/ai` with the token and normalized request payload
-4. gateway validates, enforces, executes, and responds
+1. **Hosted/default**
+   1. client calls `/auth`
+   2. gateway returns a short-lived signed token
+   3. client calls `/ai` with the hosted token and a body omitting `provider` and `model`
+   4. gateway validates, enforces, executes, and responds using configured hosted defaults
+2. **Explicit BYOK**
+   1. client calls `/ai` with `provider`, `model`, and `X-EG-AI-Provider-Credential`
+   2. gateway validates the explicit request shape and supported provider/model
+   3. gateway executes the request with the supplied raw provider credential without persisting it
+   4. gateway responds through the same standard or streaming response contract
 
 ## Enforcement model
 
 - all limits are hard enforced server-side
-- invalid, expired, or malformed authorization tokens are rejected
-- requests exceeding configured token or policy limits are rejected
+- invalid, expired, or malformed hosted authorization tokens are rejected for hosted/default requests
+- invalid mixed or partial hosted/BYOK request shapes are rejected before upstream execution
+- requests exceeding configured limits are rejected
 - unsupported provider/model combinations are rejected before upstream execution
 - both `/auth` and `/ai` are protected by rate limiting
 

@@ -16,6 +16,21 @@ import {
   loadGatewayConfig,
 } from '../../src/index.js';
 
+const issueAuthToken = async (service: ReturnType<typeof createGatewayService>): Promise<string> => {
+  const authResult = await service.handle({
+    method: 'POST',
+    path: '/auth',
+    headers: {},
+    body: JSON.stringify({ appId: 'app', clientId: 'client' }),
+  });
+
+  if (authResult.kind !== 'response') {
+    throw new Error('expected auth response');
+  }
+
+  return (JSON.parse(authResult.response.body) as { token: string }).token;
+};
+
 describe('integration gateway api', () => {
   it('enforces hard rate limits for repeated auth requests and records telemetry', async () => {
     const config = loadGatewayConfig({
@@ -141,7 +156,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       path: '/ai',
       headers: {
-        authorization: `Bearer ${authBody.token}`,
+        'x-eg-ai-provider-credential': 'byok-key',
       },
       body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
     });
@@ -157,6 +172,133 @@ describe('integration gateway api', () => {
     };
     expect(aiBody.output).toBe('hello from openai');
     expect(aiBody.usage.totalTokens).toBe(5);
+  });
+
+  it('supports hosted default execution when provider, model, and BYOK credential are absent', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+        OPENROUTER_API_KEY: 'openrouter-key',
+        AI_GATEWAY_DEFAULT_PROVIDER: 'openrouter',
+        AI_GATEWAY_DEFAULT_MODEL: 'openai/gpt-4o-mini',
+      }),
+      providerExecutor: new OpenRouterProviderExecutor({
+        credentials: { apiKey: 'openrouter-key' },
+        fetchFn: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'zero setup hosted output' } }],
+              usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      }),
+    });
+
+    const token = await issueAuthToken(service);
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: { authorization: `Bearer ${token}` },
+      body: JSON.stringify({ input: 'hello default' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(aiResult.response.body) as { provider: string; model: string; output: string };
+    expect(body.provider).toBe('openrouter');
+    expect(body.model).toBe('openai/gpt-4o-mini');
+    expect(body.output).toBe('zero setup hosted output');
+  });
+
+  it('supports explicit BYOK execution through the gateway with provider, model, and credential header', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({
+        NODE_ENV: 'test',
+        AI_GATEWAY_SIGNING_SECRET: 'test-secret',
+      }),
+      providerExecutor: new OpenAiProviderExecutor({
+        fetchFn: async (_input, init) => {
+          expect(init?.headers).toMatchObject({ authorization: 'Bearer byok-key' });
+          return new Response(
+            JSON.stringify({
+              output: [{ content: [{ type: 'output_text', text: 'hello from byok' }] }],
+              usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        },
+      }),
+    });
+
+    const aiResult = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: { 'x-eg-ai-provider-credential': 'byok-key' },
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(aiResult.kind).toBe('response');
+    if (aiResult.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(aiResult.response.body) as { provider: string; model: string; output: string };
+    expect(body.provider).toBe('openai');
+    expect(body.model).toBe('gpt-4o-mini');
+    expect(body.output).toBe('hello from byok');
+  });
+
+  it('rejects provider and model without provider credential as an invalid request shape', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({ NODE_ENV: 'test', AI_GATEWAY_SIGNING_SECRET: 'test-secret' }),
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: {},
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(result.response.body) as { code: string; details?: Record<string, unknown> };
+    expect(result.response.status).toBe(400);
+    expect(body.code).toBe('request-invalid-shape');
+    expect(body.details).toMatchObject({ reason: 'provider_model_require_credential' });
+  });
+
+  it('rejects credential-only requests as an invalid request shape', async () => {
+    const service = createGatewayService({
+      config: loadGatewayConfig({ NODE_ENV: 'test', AI_GATEWAY_SIGNING_SECRET: 'test-secret' }),
+      providerExecutor: new StubProviderExecutor(),
+    });
+
+    const result = await service.handle({
+      method: 'POST',
+      path: '/ai',
+      headers: { 'x-eg-ai-provider-credential': 'byok-key' },
+      body: JSON.stringify({ input: 'hello' }),
+    });
+
+    expect(result.kind).toBe('response');
+    if (result.kind !== 'response') {
+      throw new Error('expected response');
+    }
+
+    const body = JSON.parse(result.response.body) as { code: string; details?: Record<string, unknown> };
+    expect(result.response.status).toBe(400);
+    expect(body.code).toBe('request-invalid-shape');
+    expect(body.details).toMatchObject({ reason: 'credential_requires_provider_and_model' });
   });
 
   it('normalizes auth identifiers before token issuance and downstream verification', async () => {
@@ -278,7 +420,7 @@ describe('integration gateway api', () => {
       url: 'https://example.test/ai',
       headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
       text: async () =>
-        JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello', stream: true }),
+        JSON.stringify({ input: 'hello', stream: true }),
     });
 
     expect(streamResponse.status).toBe(200);
@@ -302,7 +444,9 @@ describe('integration gateway api', () => {
 
     expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
     expect(response.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS');
-    expect(response.headers.get('access-control-allow-headers')).toBe('content-type, authorization');
+    expect(response.headers.get('access-control-allow-headers')).toBe(
+      'content-type, authorization, x-eg-ai-provider-credential',
+    );
     expect(response.headers.get('vary')).toBe('Origin');
   });
 
@@ -408,10 +552,12 @@ describe('integration gateway api', () => {
       text: async () => JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
     });
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(400);
     expect(response.headers.get('access-control-allow-origin')).toBe('https://app.evergraytech.com');
     expect(response.headers.get('access-control-allow-methods')).toBe('POST, OPTIONS');
-    expect(response.headers.get('access-control-allow-headers')).toBe('content-type, authorization');
+    expect(response.headers.get('access-control-allow-headers')).toBe(
+      'content-type, authorization, x-eg-ai-provider-credential',
+    );
     expect(response.headers.get('vary')).toBe('Origin');
   });
 
@@ -454,7 +600,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'openai', input: 'hello' }),
+      body: JSON.stringify({ input: 'hello' }),
     });
 
     expect(aiResult.kind).toBe('response');
@@ -570,10 +716,10 @@ describe('integration gateway api', () => {
     };
 
     expect(aiResult.response.status).toBe(400);
-    expect(body.code).toBe('request-invalid');
+    expect(body.code).toBe('request-invalid-shape');
     expect(body.category).toBe('validation');
     expect(body.retryable).toBe(false);
-    expect(body.details).toMatchObject({ field: 'model', reason: 'model_requires_provider' });
+    expect(body.details).toMatchObject({ reason: 'model_requires_provider_and_credential' });
   });
 
   it('applies bounded hosted defaults for token constraints in zero-setup mode', async () => {
@@ -632,11 +778,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({
-        provider: 'anthropic',
-        model: 'claude-3-5-haiku-latest',
-        input: 'hi',
-      }),
+      body: JSON.stringify({ input: 'hi' }),
     });
 
     expect(aiResult.kind).toBe('response');
@@ -699,7 +841,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'gemini', model: 'gemini-2.0-flash', input: 'hi' }),
+      body: JSON.stringify({ input: 'hi' }),
     });
 
     expect(aiResult.kind).toBe('response');
@@ -752,7 +894,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'openrouter', model: 'openai/gpt-4o-mini', input: 'hi' }),
+      body: JSON.stringify({ input: 'hi' }),
     });
 
     expect(aiResult.kind).toBe('response');
@@ -779,7 +921,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       path: '/ai',
       headers: {},
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+      body: JSON.stringify({ input: 'hello' }),
     });
 
     expect(result.kind).toBe('response');
@@ -822,7 +964,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+      body: JSON.stringify({ input: 'hello' }),
     });
 
     expect(result.kind).toBe('response');
@@ -921,7 +1063,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', input: 'hello', stream: false }),
     });
 
     expect(result.kind).toBe('response');
@@ -938,11 +1080,8 @@ describe('integration gateway api', () => {
       details?: Record<string, unknown>;
     };
 
-    expect(body.code).toBe('policy-provider-not-allowed');
-    expect(body.category).toBe('policy');
-    expect(body.status).toBe(403);
-    expect(body.retryable).toBe(false);
-    expect(body.details).toMatchObject({ provider: 'openai' });
+    expect(body.code).toBe('request-invalid-shape');
+    expect(body.category).toBe('validation');
   });
 
   it('returns a consistent structured error envelope for auth validation failures', async () => {
@@ -1003,7 +1142,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       path: '/ai',
       headers: {},
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello' }),
+      body: JSON.stringify({ input: 'hello' }),
     });
 
     expect(result.kind).toBe('response');
@@ -1043,7 +1182,7 @@ describe('integration gateway api', () => {
       headers: {
         authorization: `Bearer ${authBody.token}`,
       },
-      body: JSON.stringify({ provider: 'openai', model: 'gpt-4o', input: 'hello' }),
+      body: JSON.stringify({ model: 'gpt-4o', input: 'hello' }),
     });
 
     expect(result.kind).toBe('response');
@@ -1098,7 +1237,7 @@ describe('integration gateway api', () => {
       url: 'https://example.test/ai',
       headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
       text: async () =>
-        JSON.stringify({ provider: 'openai', model: 'gpt-4o-mini', input: 'hello', stream: true }),
+        JSON.stringify({ input: 'hello', stream: true }),
     });
 
     expect(streamResponse.status).toBe(200);
@@ -1154,7 +1293,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       url: 'https://example.test/ai',
       headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
-      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+      text: async () => JSON.stringify({ input: 'hello', stream: true }),
     });
 
     const reader = streamResponse.body?.getReader();
@@ -1219,7 +1358,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       url: 'https://example.test/ai',
       headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
-      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+      text: async () => JSON.stringify({ input: 'hello', stream: true }),
     });
 
     const reader = streamResponse.body?.getReader();
@@ -1266,7 +1405,7 @@ describe('integration gateway api', () => {
       method: 'POST',
       url: 'https://example.test/ai',
       headers: new Headers({ authorization: `Bearer ${authBody.token}` }),
-      text: async () => JSON.stringify({ provider: 'openai', input: 'hello', stream: true }),
+      text: async () => JSON.stringify({ input: 'hello', stream: true }),
     });
 
     const reader = streamResponse.body?.getReader();

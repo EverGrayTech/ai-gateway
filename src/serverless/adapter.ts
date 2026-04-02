@@ -11,7 +11,7 @@ export interface FetchLikeRequest {
 type NodeLikeHeaders = Record<string, string | readonly string[] | undefined>;
 
 const ACCESS_CONTROL_ALLOW_METHODS = 'POST, OPTIONS';
-const ACCESS_CONTROL_ALLOW_HEADERS = 'content-type, authorization';
+const ACCESS_CONTROL_ALLOW_HEADERS = 'content-type, authorization, x-eg-ai-provider-credential';
 
 interface NodeLikeRequest {
   method?: string;

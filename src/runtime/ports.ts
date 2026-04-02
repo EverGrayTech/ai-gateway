@@ -1,5 +1,6 @@
 import type { RequestContext } from '../contracts/context.js';
 import type { GatewayHttpRequest } from '../contracts/http.js';
+import type { ProviderCredentialSet } from '../contracts/config.js';
 
 export interface RateLimitDescriptor {
   key: string;
@@ -39,6 +40,7 @@ export interface ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
+    credentialsOverride?: ProviderCredentialSet;
   }): Promise<{
     output: string;
     usage?: {

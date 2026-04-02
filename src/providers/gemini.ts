@@ -169,6 +169,7 @@ export class GeminiProviderExecutor implements ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
+    credentialsOverride?: ProviderCredentialSet;
   }): Promise<{
     output: string;
     usage?: {
@@ -189,12 +190,13 @@ export class GeminiProviderExecutor implements ProviderExecutorPort {
       throw upstreamError('Provider adapter does not support requested model', 'MODEL_MISMATCH');
     }
 
-    const apiKey = this.#credentials?.apiKey?.trim();
+    const resolvedCredentials = input.credentialsOverride ?? this.#credentials;
+    const apiKey = resolvedCredentials?.apiKey?.trim();
     if (!apiKey) {
       throw upstreamError('Gemini provider is not configured', 'GEMINI_MISSING_CREDENTIALS');
     }
 
-    const baseUrl = resolveBaseUrl(this.#credentials);
+    const baseUrl = resolveBaseUrl(resolvedCredentials);
     const nonStreamingUrl = `${baseUrl}/v1beta/models/${input.model}:generateContent`;
 
     if (input.stream) {

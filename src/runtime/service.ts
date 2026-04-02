@@ -1,6 +1,7 @@
 import { type HmacTokenSigner, createTokenClaims } from '../auth/token.js';
 import type { GatewayTokenClaims } from '../auth/token.js';
 import {
+  AI_PROVIDER_CREDENTIAL_HEADER,
   type AuthRequestBody,
   type AuthSuccessResponse,
   normalizeAuthRequest,
@@ -20,8 +21,10 @@ import { redactFields } from '../observability/redaction.js';
 import { startRequestTimer, summarizeRequestContext } from '../observability/request.js';
 import {
   createGatewayPolicy,
+  evaluateByokExecutionIntent,
   evaluateExecutionIntent,
   normalizeAiRequest,
+  resolveAiRequestShape,
   resolveEffectivePolicy,
 } from '../policy/core.js';
 import { createRequestContext } from './context.js';
@@ -220,34 +223,11 @@ export class GatewayService {
     const authHeader = Object.entries(request.headers).find(
       ([name]) => name.toLowerCase() === 'authorization',
     )?.[1];
+    const credentialHeader = Object.entries(request.headers).find(
+      ([name]) => name.toLowerCase() === AI_PROVIDER_CREDENTIAL_HEADER,
+    )?.[1];
     const authorization = Array.isArray(authHeader) ? authHeader[0] : authHeader;
-    if (!authorization?.startsWith('Bearer ')) {
-      throw authenticationError('Bearer token is required.', 'token-missing', {
-        reason: 'missing_bearer_token',
-      });
-    }
-
-    let identity: { appId?: string; clientId?: string };
-    let tokenClaims: GatewayTokenClaims;
-    try {
-      const verifiedToken = await this.#dependencies.tokenSigner.verify(
-        authorization.slice('Bearer '.length),
-      );
-      tokenClaims = verifiedToken.claims;
-      identity = {
-        appId: verifiedToken.claims.appId,
-        clientId: verifiedToken.claims.clientId,
-      };
-    } catch {
-      throw authenticationError('Bearer token is invalid or expired.', 'token-invalid', {
-        reason: 'token_verification_failed',
-      });
-    }
-
-    const context = createRequestContext(request, this.#dependencies.config, identity);
-    setContext(context);
-
-    await this.enforceRateLimit(context, request);
+    const providerCredential = Array.isArray(credentialHeader) ? credentialHeader[0] : credentialHeader;
 
     const body = parseJsonBody<
       AuthRequestBody & {
@@ -259,13 +239,76 @@ export class GatewayService {
       }
     >(request);
     const normalizedRequest = normalizeAiRequest(body);
+    const requestShape = resolveAiRequestShape(normalizedRequest, providerCredential);
+
     const policy = createGatewayPolicy(this.#dependencies.config);
-    const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
-    const executionIntent = evaluateExecutionIntent(
-      normalizedRequest,
-      tokenClaims,
-      effectivePolicy,
-    );
+    let context: RequestContext;
+    let executionIntent;
+    let credentialsOverride;
+
+    if (requestShape.kind === 'hosted-default') {
+      if (!authorization?.startsWith('Bearer ')) {
+        throw authenticationError('Bearer token is required.', 'token-missing', {
+          reason: 'missing_bearer_token',
+        });
+      }
+
+      let identity: { appId?: string; clientId?: string };
+      let tokenClaims: GatewayTokenClaims;
+      try {
+        const verifiedToken = await this.#dependencies.tokenSigner.verify(
+          authorization.slice('Bearer '.length),
+        );
+        tokenClaims = verifiedToken.claims;
+        identity = {
+          appId: verifiedToken.claims.appId,
+          clientId: verifiedToken.claims.clientId,
+        };
+      } catch {
+        throw authenticationError('Bearer token is invalid or expired.', 'token-invalid', {
+          reason: 'token_verification_failed',
+        });
+      }
+
+      context = createRequestContext(request, this.#dependencies.config, identity);
+      setContext(context);
+      await this.enforceRateLimit(context, request);
+      const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
+      executionIntent = evaluateExecutionIntent(normalizedRequest, tokenClaims, effectivePolicy);
+    } else if (authorization?.startsWith('Bearer ')) {
+      let identity: { appId?: string; clientId?: string };
+      let tokenClaims: GatewayTokenClaims;
+      try {
+        const verifiedToken = await this.#dependencies.tokenSigner.verify(
+          authorization.slice('Bearer '.length),
+        );
+        tokenClaims = verifiedToken.claims;
+        identity = {
+          appId: verifiedToken.claims.appId,
+          clientId: verifiedToken.claims.clientId,
+        };
+      } catch {
+        throw authenticationError('Bearer token is invalid or expired.', 'token-invalid', {
+          reason: 'token_verification_failed',
+        });
+      }
+
+      context = createRequestContext(request, this.#dependencies.config, identity);
+      setContext(context);
+      await this.enforceRateLimit(context, request);
+      const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
+      executionIntent = evaluateExecutionIntent(normalizedRequest, tokenClaims, effectivePolicy);
+    } else {
+      context = createRequestContext(request, this.#dependencies.config, {
+        appId: 'byok-app',
+        clientId: 'byok-client',
+      });
+      setContext(context);
+      await this.enforceRateLimit(context, request);
+      const effectivePolicy = resolveEffectivePolicy(policy, context.identity.appId);
+      executionIntent = evaluateByokExecutionIntent(requestShape, effectivePolicy);
+      credentialsOverride = { apiKey: requestShape.providerCredential ?? '' };
+    }
 
     await this.#dependencies.telemetry.record('ai.policy.evaluated', {
       ...redactFields(summarizeRequestContext(context)),
@@ -282,6 +325,7 @@ export class GatewayService {
       stream: executionIntent.stream,
       maxOutputTokens: executionIntent.maxOutputTokens,
       context,
+      credentialsOverride,
     });
 
     if (executionIntent.stream) {

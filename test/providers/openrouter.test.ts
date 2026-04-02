@@ -163,4 +163,34 @@ describe('providers openrouter', () => {
       code: 'OPENROUTER_RATE_LIMIT',
     });
   });
+
+  it('prefers request-scoped credentials over configured credentials for BYOK execution', async () => {
+    const executor = new OpenRouterProviderExecutor({
+      credentials: { apiKey: 'configured-key' },
+      fetchFn: async (_input, init) => {
+        expect(init?.headers).toMatchObject({
+          authorization: 'Bearer byok-key',
+        });
+
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'hello byok openrouter' } }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      },
+    });
+
+    const result = await executor.execute({
+      provider: 'openrouter',
+      model: 'openai/gpt-4o-mini',
+      prompt: 'hello',
+      stream: false,
+      maxOutputTokens: 128,
+      context: createRequestContext(),
+      credentialsOverride: { apiKey: 'byok-key' },
+    });
+
+    expect(result.output).toBe('hello byok openrouter');
+  });
 });

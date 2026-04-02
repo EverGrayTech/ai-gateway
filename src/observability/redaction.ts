@@ -1,4 +1,11 @@
-const SENSITIVE_KEYS = [/token/i, /authorization/i, /api[-_]?key/i, /prompt/i, /input/i];
+const SENSITIVE_KEYS = [
+  /token/i,
+  /authorization/i,
+  /api[-_]?key/i,
+  /credential/i,
+  /prompt/i,
+  /input/i,
+];
 
 const isSensitiveKey = (key: string): boolean =>
   SENSITIVE_KEYS.some((pattern) => pattern.test(key));

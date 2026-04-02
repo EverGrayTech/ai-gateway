@@ -2,6 +2,7 @@ import type { GatewayTokenClaims } from '../auth/token.js';
 import type { AiRequestBody } from '../contracts/api.js';
 import type { GatewayConfig } from '../contracts/config.js';
 import type {
+  ResolvedAiRequestShape,
   EffectiveGatewayPolicy,
   GatewayPolicy,
   NormalizedAiRequest,
@@ -61,6 +62,136 @@ export const normalizeAiRequest = (body: AiRequestBody): NormalizedAiRequest => 
     input,
     stream: Boolean(body.stream),
     maxOutputTokens: body.maxOutputTokens,
+  };
+};
+
+export const resolveAiRequestShape = (
+  request: NormalizedAiRequest,
+  providerCredential?: string,
+): ResolvedAiRequestShape => {
+  const hasProvider = request.provider.length > 0;
+  const hasModel = request.model.length > 0;
+  const normalizedCredential = providerCredential?.trim() || '';
+  const hasCredential = normalizedCredential.length > 0;
+
+  if (!hasProvider && !hasModel && !hasCredential) {
+    return {
+      kind: 'hosted-default',
+      provider: '',
+      model: '',
+      input: request.input,
+      stream: request.stream,
+      maxOutputTokens: request.maxOutputTokens,
+    };
+  }
+
+  if (hasProvider && hasModel && hasCredential) {
+    return {
+      kind: 'explicit-byok',
+      provider: request.provider,
+      model: request.model,
+      input: request.input,
+      stream: request.stream,
+      maxOutputTokens: request.maxOutputTokens,
+      providerCredential: normalizedCredential,
+    };
+  }
+
+  const details = {
+    providerPresent: hasProvider,
+    modelPresent: hasModel,
+    credentialPresent: hasCredential,
+  };
+
+  if (hasProvider && !hasModel && !hasCredential) {
+    throw validationError('provider requires model and provider credential.', 'request-invalid-shape', {
+      reason: 'provider_requires_model_and_credential',
+      ...details,
+    });
+  }
+
+  if (!hasProvider && hasModel && !hasCredential) {
+    throw validationError('model requires provider and provider credential.', 'request-invalid-shape', {
+      reason: 'model_requires_provider_and_credential',
+      ...details,
+    });
+  }
+
+  if (!hasProvider && !hasModel && hasCredential) {
+    throw validationError('provider credential requires provider and model.', 'request-invalid-shape', {
+      reason: 'credential_requires_provider_and_model',
+      ...details,
+    });
+  }
+
+  if (hasProvider && hasModel && !hasCredential) {
+    throw validationError('provider and model require provider credential.', 'request-invalid-shape', {
+      reason: 'provider_model_require_credential',
+      ...details,
+    });
+  }
+
+  if (hasProvider && !hasModel && hasCredential) {
+    throw validationError('provider and provider credential require model.', 'request-invalid-shape', {
+      reason: 'provider_credential_require_model',
+      ...details,
+    });
+  }
+
+  throw validationError('model and provider credential require provider.', 'request-invalid-shape', {
+    reason: 'model_credential_require_provider',
+    ...details,
+  });
+};
+
+export const evaluateByokExecutionIntent = (
+  request: ResolvedAiRequestShape,
+  effectivePolicy: EffectiveGatewayPolicy,
+): ProviderExecutionIntent => {
+  if (request.kind !== 'explicit-byok') {
+    throw validationError('BYOK execution requires explicit provider, model, and provider credential.');
+  }
+
+  const supportedModels = getSupportedModelsForProvider(request.provider);
+  if (supportedModels.length === 0) {
+    throw validationError(`Unsupported provider "${request.provider}".`, 'request-invalid', {
+      provider: request.provider,
+      reason: 'provider_not_supported',
+    });
+  }
+
+  if (!supportedModels.includes(request.model)) {
+    throw validationError(
+      `Requested model "${request.model}" is not supported by provider "${request.provider}".`,
+      'request-invalid',
+      {
+        provider: request.provider,
+        model: request.model,
+        reason: 'model_not_supported_by_provider',
+      },
+    );
+  }
+
+  const requestedInputTokens = countApproximateTokens(request.input);
+  if (requestedInputTokens > effectivePolicy.maxInputTokens) {
+    throw validationError('Input exceeds allowed size for this route.', 'request-invalid', {
+      reason: 'input_too_large',
+      limit: effectivePolicy.maxInputTokens,
+      requested: requestedInputTokens,
+    });
+  }
+
+  const maxOutputTokens = Math.min(
+    request.maxOutputTokens ?? effectivePolicy.maxOutputTokens,
+    effectivePolicy.maxOutputTokens,
+  );
+
+  return {
+    provider: request.provider,
+    model: request.model,
+    prompt: request.input,
+    stream: request.stream,
+    maxOutputTokens,
   };
 };
 

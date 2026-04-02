@@ -37,6 +37,18 @@ export interface NormalizedAiRequest {
   maxOutputTokens?: number;
 }
 
+export type AiRequestShape = 'hosted-default' | 'explicit-byok';
+
+export interface ResolvedAiRequestShape {
+  kind: AiRequestShape;
+  provider: string;
+  model: string;
+  input: string;
+  stream: boolean;
+  maxOutputTokens?: number;
+  providerCredential?: string;
+}
+
 export interface ProviderExecutionIntent {
   provider: string;
   model: string;

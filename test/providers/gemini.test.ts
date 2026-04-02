@@ -171,4 +171,34 @@ describe('providers gemini', () => {
       code: 'GEMINI_RATE_LIMIT',
     });
   });
+
+  it('prefers request-scoped credentials over configured credentials for BYOK execution', async () => {
+    const executor = new GeminiProviderExecutor({
+      credentials: { apiKey: 'configured-key' },
+      fetchFn: async (_input, init) => {
+        expect(init?.headers).toMatchObject({
+          'x-goog-api-key': 'byok-key',
+        });
+
+        return new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: 'hello byok gemini' }] } }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      },
+    });
+
+    const result = await executor.execute({
+      provider: 'gemini',
+      model: 'gemini-2.0-flash',
+      prompt: 'hello',
+      stream: false,
+      maxOutputTokens: 128,
+      context: createRequestContext(),
+      credentialsOverride: { apiKey: 'byok-key' },
+    });
+
+    expect(result.output).toBe('hello byok gemini');
+  });
 });

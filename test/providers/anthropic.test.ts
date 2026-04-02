@@ -166,4 +166,34 @@ describe('providers anthropic', () => {
       code: 'ANTHROPIC_RATE_LIMIT',
     });
   });
+
+  it('prefers request-scoped credentials over configured credentials for BYOK execution', async () => {
+    const executor = new AnthropicProviderExecutor({
+      credentials: { apiKey: 'configured-key' },
+      fetchFn: async (_input, init) => {
+        expect(init?.headers).toMatchObject({
+          'x-api-key': 'byok-key',
+        });
+
+        return new Response(
+          JSON.stringify({
+            content: [{ type: 'text', text: 'hello byok anthropic' }],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      },
+    });
+
+    const result = await executor.execute({
+      provider: 'anthropic',
+      model: 'claude-3-5-haiku-latest',
+      prompt: 'hello',
+      stream: false,
+      maxOutputTokens: 128,
+      context: createRequestContext(),
+      credentialsOverride: { apiKey: 'byok-key' },
+    });
+
+    expect(result.output).toBe('hello byok anthropic');
+  });
 });

@@ -45,6 +45,8 @@ export interface AiRequestBody {
   maxOutputTokens?: number;
 }
 
+export const AI_PROVIDER_CREDENTIAL_HEADER = 'x-eg-ai-provider-credential';
+
 export interface AiSuccessResponse {
   provider: string;
   model: string;

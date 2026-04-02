@@ -204,6 +204,7 @@ export class OpenRouterProviderExecutor implements ProviderExecutorPort {
     stream: boolean;
     maxOutputTokens: number;
     context: RequestContext;
+    credentialsOverride?: ProviderCredentialSet;
   }): Promise<{
     output: string;
     usage?: {
@@ -224,7 +225,8 @@ export class OpenRouterProviderExecutor implements ProviderExecutorPort {
       throw upstreamError('Provider adapter does not support requested model', 'MODEL_MISMATCH');
     }
 
-    const apiKey = this.#credentials?.apiKey?.trim();
+    const resolvedCredentials = input.credentialsOverride ?? this.#credentials;
+    const apiKey = resolvedCredentials?.apiKey?.trim();
     if (!apiKey) {
       throw upstreamError(
         'OpenRouter provider is not configured',
@@ -232,7 +234,7 @@ export class OpenRouterProviderExecutor implements ProviderExecutorPort {
       );
     }
 
-    const response = await this.#fetchFn(`${resolveBaseUrl(this.#credentials)}/chat/completions`, {
+    const response = await this.#fetchFn(`${resolveBaseUrl(resolvedCredentials)}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
